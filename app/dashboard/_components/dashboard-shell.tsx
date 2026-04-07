@@ -1,11 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Layout, Menu, Typography } from "@/components/antd-ui";
 
-const nav: { href: string; key: string; label: string }[] = [
-  { href: "/dashboard", key: "home", label: "Home" },
-  { href: "/dashboard/sets", key: "sets", label: "My Sets" },
-  { href: "/dashboard/progress", key: "progress", label: "Progress" },
+const { Header, Content } = Layout;
+const { Title } = Typography;
+
+const NAV_ITEMS = [
+  { key: "/dashboard", label: "Home" },
+  { key: "/dashboard/sets", label: "My Sets" },
+  { key: "/dashboard/progress", label: "Progress" },
 ];
 
 export function DashboardShell({
@@ -15,35 +20,55 @@ export function DashboardShell({
   children: React.ReactNode;
   active: "home" | "sets" | "progress";
 }) {
+  const pathname = usePathname();
+
+  const keyMap: Record<typeof active, string> = {
+    home: "/dashboard",
+    sets: "/dashboard/sets",
+    progress: "/dashboard/progress",
+  };
+
+  const selectedKey = keyMap[active] ?? pathname;
+
+  const menuItems = NAV_ITEMS.map((item) => ({
+    key: item.key,
+    label: <Link href={item.key}>{item.label}</Link>,
+  }));
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow">
-        <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
-          <Link href="/dashboard" className="text-2xl font-bold text-blue-600">
+    <Layout className="min-h-screen bg-gray-50">
+      <Header
+        style={{
+          background: "#fff",
+          borderBottom: "1px solid #f0f0f0",
+          padding: "0 32px",
+          display: "flex",
+          alignItems: "center",
+          gap: 32,
+        }}
+      >
+        <Link href="/dashboard">
+          <Title
+            level={4}
+            style={{ margin: 0, color: "#2563eb", lineHeight: "64px" }}
+          >
             LinguaLearn
-          </Link>
-        </div>
-      </header>
-      <div className="border-b bg-white">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <nav className="flex gap-8 py-4">
-            {nav.map((item) => (
-              <Link
-                key={item.key}
-                href={item.href}
-                className={
-                  active === item.key
-                    ? "border-b-2 border-blue-600 pb-2 font-medium text-blue-600"
-                    : "pb-2 text-gray-600 hover:text-gray-900"
-                }
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-        </div>
-      </div>
-      {children}
-    </div>
+          </Title>
+        </Link>
+
+        <Menu
+          mode="horizontal"
+          selectedKeys={[selectedKey]}
+          items={menuItems}
+          style={{
+            flex: 1,
+            border: "none",
+            lineHeight: "62px",
+          }}
+        />
+      </Header>
+
+      <Content>{children}</Content>
+    </Layout>
   );
 }

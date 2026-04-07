@@ -3,37 +3,47 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import {
+  Alert,
+  Button,
+  Card,
+  Form,
+  Input,
+  Select,
+  Typography,
+} from "@/components/antd-ui";
 import { setsApiClient, ApiError } from "@/lib/api";
 import { DashboardShell } from "../../_components/dashboard-shell";
 
+const { Title } = Typography;
+
+interface CreateFormValues {
+  title: string;
+  description?: string;
+  language: string;
+  visibility: "public" | "private";
+}
+
 export default function CreateSetPage() {
   const router = useRouter();
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [language, setLanguage] = useState("Japanese");
-  const [isPublic, setIsPublic] = useState(false);
+  const [form] = Form.useForm<CreateFormValues>();
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    if (!title.trim()) {
-      setError("Title is required");
-      return;
-    }
+  const handleFinish = async (values: CreateFormValues) => {
     setSubmitting(true);
     try {
       const created = await setsApiClient.create({
-        title: title.trim(),
-        description: description.trim(),
-        language,
-        isPublic,
+        title: values.title.trim(),
+        description: values.description?.trim() ?? "",
+        language: values.language,
+        isPublic: values.visibility === "public",
         cards: [],
       });
       router.push(`/dashboard/sets/${created.id}`);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Something went wrong");
+      const msg =
+        err instanceof ApiError ? err.message : "Something went wrong";
+      form.setFields([{ name: "title", errors: [msg] }]);
     } finally {
       setSubmitting(false);
     }
@@ -42,106 +52,89 @@ export default function CreateSetPage() {
   return (
     <DashboardShell active="sets">
       <main className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
-        <h2 className="mb-8 text-3xl font-bold text-gray-900">
+        <Title level={3} style={{ marginBottom: 32 }}>
           Create New Study Set
-        </h2>
+        </Title>
 
-        <div className="rounded-xl bg-white p-8 shadow">
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            {error ? (
-              <p className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-600">
-                {error}
-              </p>
-            ) : null}
-            <div>
-              <label
-                htmlFor="title"
-                className="mb-2 block text-sm font-medium text-gray-700"
-              >
-                Set Title
-              </label>
-              <input
-                id="title"
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g., Japanese Hiragana"
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              />
-            </div>
+        <Card>
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={handleFinish}
+            initialValues={{ language: "Japanese", visibility: "private" }}
+          >
+            <Form.Item
+              label="Set Title"
+              name="title"
+              rules={[{ required: true, message: "Title is required" }]}
+            >
+              <Input placeholder="e.g., Japanese Hiragana" />
+            </Form.Item>
 
-            <div>
-              <label
-                htmlFor="desc"
-                className="mb-2 block text-sm font-medium text-gray-700"
-              >
-                Description
-              </label>
-              <textarea
-                id="desc"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Describe what learners will study in this set"
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            <Form.Item label="Description" name="description">
+              <Input.TextArea
                 rows={4}
+                placeholder="Describe what learners will study in this set"
               />
-            </div>
+            </Form.Item>
 
-            <div>
-              <label
-                htmlFor="lang"
-                className="mb-2 block text-sm font-medium text-gray-700"
-              >
-                Language
-              </label>
-              <select
-                id="lang"
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              >
-                <option value="Japanese">Japanese</option>
-                <option value="Chinese">Chinese</option>
-              </select>
-            </div>
+            <Form.Item
+              label="Language"
+              name="language"
+              rules={[{ required: true }]}
+            >
+              <Select
+                options={[
+                  { value: "Japanese", label: "Japanese" },
+                  { value: "Chinese", label: "Chinese" },
+                ]}
+              />
+            </Form.Item>
 
-            <div>
-              <label
-                htmlFor="vis"
-                className="mb-2 block text-sm font-medium text-gray-700"
-              >
-                Visibility
-              </label>
-              <select
-                id="vis"
-                value={isPublic ? "public" : "private"}
-                onChange={(e) => setIsPublic(e.target.value === "public")}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              >
-                <option value="private">Private</option>
-                <option value="public">Public</option>
-              </select>
-            </div>
+            <Form.Item
+              label="Visibility"
+              name="visibility"
+              rules={[{ required: true }]}
+            >
+              <Select
+                options={[
+                  { value: "private", label: "Private" },
+                  { value: "public", label: "Public" },
+                ]}
+              />
+            </Form.Item>
 
-            <div className="flex gap-4 pt-4">
-              <button
-                type="submit"
-                disabled={submitting}
-                className="rounded-lg bg-blue-600 px-8 py-3 font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
+            {/* Global error shown as Alert if needed */}
+            <Form.Item noStyle shouldUpdate>
+              {({ getFieldError }) => {
+                const err = getFieldError("title").find((e) =>
+                  e.includes("went wrong"),
+                );
+                return err ? (
+                  <Alert
+                    type="error"
+                    message={err}
+                    style={{ marginBottom: 16 }}
+                  />
+                ) : null;
+              }}
+            </Form.Item>
+
+            <Form.Item style={{ marginBottom: 0 }}>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={submitting}
+                style={{ marginRight: 12 }}
               >
-                {submitting ? "Creating…" : "Create Set"}
-              </button>
+                Create Set
+              </Button>
               <Link href="/dashboard/sets">
-                <button
-                  type="button"
-                  className="rounded-lg border border-gray-300 px-8 py-3 font-medium text-gray-700 transition hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
+                <Button>Cancel</Button>
               </Link>
-            </div>
-          </form>
-        </div>
+            </Form.Item>
+          </Form>
+        </Card>
       </main>
     </DashboardShell>
   );

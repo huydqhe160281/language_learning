@@ -3,99 +3,139 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
+import {
+  Alert,
+  Button,
+  Card,
+  Col,
+  Row,
+  Space,
+  Typography,
+} from "@/components/antd-ui";
+
+const { Title, Text } = Typography;
+
+const MODES = [
+  {
+    id: "flashcard",
+    name: "Flashcards",
+    icon: "🃏",
+    desc: "Test your memory with interactive cards",
+    color: "#2563eb",
+  },
+  {
+    id: "test",
+    name: "Test",
+    icon: "📝",
+    desc: "Mixed question types to check mastery",
+    color: "#0f766e",
+  },
+  {
+    id: "learn",
+    name: "Learn Mode",
+    icon: "📖",
+    desc: "Step-by-step learning with type-answer",
+    color: "#0d9488",
+  },
+  {
+    id: "quiz",
+    name: "Quiz",
+    icon: "❓",
+    desc: "Answer multiple-choice questions",
+    color: "#7c3aed",
+  },
+  {
+    id: "match",
+    name: "Matching Game",
+    icon: "🎮",
+    desc: "Match words with translations",
+    color: "#ea580c",
+  },
+];
 
 export default function StudySelectPage() {
   const params = useParams();
   const setId = typeof params.id === "string" ? params.id : "";
   const [selectedMode, setSelectedMode] = useState("flashcard");
 
-  const modes = [
-    {
-      id: "flashcard",
-      name: "Flashcards",
-      icon: "🃏",
-      desc: "Test your memory with interactive cards",
-    },
-    {
-      id: "learn",
-      name: "Learn Mode",
-      icon: "📖",
-      desc: "Step-by-step learning guide",
-    },
-    {
-      id: "quiz",
-      name: "Quiz",
-      icon: "❓",
-      desc: "Answer multiple-choice questions",
-    },
-    {
-      id: "match",
-      name: "Matching Game",
-      icon: "🎮",
-      desc: "Match words with translations",
-    },
-  ];
-
-  const selected = modes.find((m) => m.id === selectedMode);
+  const selected = MODES.find((m) => m.id === selectedMode);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600 p-4">
-      <div className="w-full max-w-4xl rounded-xl bg-white p-12 shadow-2xl">
-        <div className="mb-12 text-center">
-          <h1 className="mb-2 text-4xl font-bold text-gray-900">
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "linear-gradient(135deg, #3b82f6 0%, #4f46e5 100%)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+      }}
+    >
+      <Card
+        style={{ width: "100%", maxWidth: 800 }}
+        styles={{ body: { padding: "48px 48px 40px" } }}
+      >
+        <div style={{ textAlign: "center", marginBottom: 40 }}>
+          <Title level={2} style={{ marginBottom: 8 }}>
             Choose Study Mode
-          </h1>
-          <p className="text-gray-600">Select how you want to study</p>
+          </Title>
+          <Text type="secondary">Select how you want to study</Text>
         </div>
 
-        {/* Mode Selection Grid */}
-        <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
-          {modes.map((mode) => (
-            <button
-              key={mode.id}
-              onClick={() => setSelectedMode(mode.id)}
-              className={`rounded-lg border-2 p-6 text-left transition ${
-                selectedMode === mode.id
-                  ? "border-blue-600 bg-blue-50 shadow-lg"
-                  : "border-gray-300 hover:border-blue-400 hover:bg-gray-50"
-              }`}
-            >
-              <div className="mb-3 text-4xl">{mode.icon}</div>
-              <h3 className="mb-1 text-lg font-semibold text-gray-900">
-                {mode.name}
-              </h3>
-              <p className="text-sm text-gray-600">{mode.desc}</p>
-            </button>
+        {/* Mode grid */}
+        <Row gutter={[16, 16]} style={{ marginBottom: 28 }}>
+          {MODES.map((mode) => (
+            <Col xs={24} sm={12} key={mode.id}>
+              <Card
+                hoverable
+                onClick={() => setSelectedMode(mode.id)}
+                style={{
+                  cursor: "pointer",
+                  border:
+                    selectedMode === mode.id
+                      ? `2px solid ${mode.color}`
+                      : "2px solid transparent",
+                  background:
+                    selectedMode === mode.id ? `${mode.color}0d` : undefined,
+                  transition: "all 0.15s",
+                }}
+              >
+                <div style={{ fontSize: 36, marginBottom: 8 }}>{mode.icon}</div>
+                <Title level={5} style={{ margin: "0 0 4px" }}>
+                  {mode.name}
+                </Title>
+                <Text type="secondary" style={{ fontSize: 13 }}>
+                  {mode.desc}
+                </Text>
+              </Card>
+            </Col>
           ))}
-        </div>
+        </Row>
 
-        {/* Selected Mode Info */}
+        {/* Selected info */}
         {selected && (
-          <div className="mb-8 rounded-lg border border-blue-200 bg-blue-50 p-6">
-            <div className="mb-2 flex items-center gap-3">
-              <span className="text-3xl">{selected.icon}</span>
-              <h3 className="text-lg font-semibold text-gray-900">
-                {selected.name}
-              </h3>
-            </div>
-            <p className="text-gray-600">{selected.desc}</p>
-          </div>
+          <Alert
+            type="info"
+            icon={<span style={{ fontSize: 24 }}>{selected.icon}</span>}
+            showIcon
+            message={selected.name}
+            description={selected.desc}
+            style={{ marginBottom: 24 }}
+          />
         )}
 
-        {/* Action Buttons */}
-        <div className="flex justify-center gap-4">
+        {/* Actions */}
+        <Space style={{ display: "flex", justifyContent: "center" }}>
           <Link href={`/dashboard/sets/${setId}`}>
-            <button className="rounded-lg border border-gray-300 px-8 py-3 font-medium text-gray-700 transition hover:bg-gray-50">
-              Cancel
-            </button>
+            <Button size="large">Cancel</Button>
           </Link>
           <Link href={`/dashboard/study/${setId}/${selectedMode}`}>
-            <button className="rounded-lg bg-blue-600 px-8 py-3 font-medium text-white transition hover:bg-blue-700">
+            <Button type="primary" size="large">
               Start {selected?.name}
-            </button>
+            </Button>
           </Link>
-        </div>
-      </div>
+        </Space>
+      </Card>
     </div>
   );
 }

@@ -3,15 +3,28 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
+import { CloseOutlined } from "@ant-design/icons";
+import {
+  Button,
+  Card,
+  Col,
+  Row,
+  Spin,
+  Statistic,
+  Tag,
+  Typography,
+} from "@/components/antd-ui";
 import {
   setsApiClient,
   studySessionsApiClient,
   StudySet,
-  Card,
+  Card as FlashCard,
 } from "@/lib/api";
 
+const { Title, Text } = Typography;
+
 type Tile = {
-  key: string; // unique tile id
+  key: string;
   cardId: string;
   text: string;
   side: "front" | "back";
@@ -19,10 +32,10 @@ type Tile = {
 
 type TileState = "idle" | "selected" | "matched" | "wrong";
 
-const MATCH_COUNT = 6; // pairs shown at once
+const MATCH_COUNT = 6;
 
-function buildTiles(cards: Card[]): Tile[] {
-  const pool = cards.slice(0, MATCH_COUNT);
+function buildTiles(cards: FlashCard[]): Tile[] {
+  const pool = [...cards].sort(() => Math.random() - 0.5).slice(0, MATCH_COUNT);
   const fronts: Tile[] = pool.map((c) => ({
     key: `f-${c.id}`,
     cardId: c.id,
@@ -44,7 +57,6 @@ export default function MatchPage() {
 
   const [set, setSet] = useState<StudySet | null>(null);
   const [loading, setLoading] = useState(true);
-
   const [tiles, setTiles] = useState<Tile[]>([]);
   const [tileStates, setTileStates] = useState<Record<string, TileState>>({});
   const [selected, setSelected] = useState<string | null>(null);
@@ -65,7 +77,7 @@ export default function MatchPage() {
       .catch(() => setLoading(false));
   }, [setId]);
 
-  const initGame = useCallback((cards: Card[]) => {
+  const initGame = useCallback((cards: FlashCard[]) => {
     const t = buildTiles(cards);
     const states: Record<string, TileState> = {};
     t.forEach((tile) => (states[tile.key] = "idle"));
@@ -83,7 +95,6 @@ export default function MatchPage() {
     if (set && (set.cards ?? []).length >= 2) initGame(set.cards ?? []);
   }, [set, initGame]);
 
-  // Timer
   useEffect(() => {
     if (!running || finished) return;
     const id = setInterval(() => {
@@ -115,8 +126,6 @@ export default function MatchPage() {
           [key]: "matched",
         }));
         setSelected(null);
-
-        // Check if all matched
         const matchedCount = Object.values({
           ...tileStates,
           [selected]: "matched",
@@ -157,54 +166,41 @@ export default function MatchPage() {
   const formatTime = (s: number) =>
     `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
-  const tileClass = (key: string) => {
-    const state = tileStates[key] ?? "idle";
-    const base =
-      "rounded-xl px-4 py-5 text-center font-semibold text-base transition-all duration-150 cursor-pointer select-none border-2 ";
-    switch (state) {
-      case "idle":
-        return (
-          base +
-          "bg-white border-gray-200 hover:border-orange-400 hover:shadow-md text-gray-900"
-        );
-      case "selected":
-        return (
-          base +
-          "bg-orange-500 border-orange-500 text-white shadow-lg scale-105"
-        );
-      case "matched":
-        return (
-          base +
-          "bg-green-100 border-green-400 text-green-800 opacity-50 cursor-default"
-        );
-      case "wrong":
-        return base + "bg-red-100 border-red-400 text-red-700 shake";
-      default:
-        return base;
-    }
-  };
-
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-orange-500 to-amber-400">
-        <p className="text-xl text-white">Loading…</p>
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "linear-gradient(135deg,#f97316,#ea580c)",
+        }}
+      >
+        <Spin size="large" tip="Loading…" />
       </div>
     );
   }
+
   if (!set || (set.cards ?? []).length < 2) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-orange-500 to-amber-400 p-4">
-        <div className="w-full max-w-sm rounded-2xl bg-white p-10 text-center">
-          <p className="mb-4 text-gray-600">
-            Need at least 2 cards for matching.
-          </p>
-          <Link
-            href={`/dashboard/sets/${setId}`}
-            className="text-blue-600 hover:underline"
-          >
-            ← Back to set
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "linear-gradient(135deg,#f97316,#ea580c)",
+          padding: 24,
+        }}
+      >
+        <Card style={{ maxWidth: 400, width: "100%", textAlign: "center" }}>
+          <Text>Need at least 2 cards for matching.</Text>
+          <br />
+          <Link href={`/dashboard/sets/${setId}`}>
+            <Button type="link">← Back to set</Button>
           </Link>
-        </div>
+        </Card>
       </div>
     );
   }
@@ -212,75 +208,192 @@ export default function MatchPage() {
   if (finished) {
     const star = mistakes === 0 ? "⭐⭐⭐" : mistakes <= 2 ? "⭐⭐" : "⭐";
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-orange-500 to-amber-400 p-4">
-        <div className="w-full max-w-md rounded-2xl bg-white p-10 text-center shadow-2xl">
-          <div className="mb-3 text-5xl">{star}</div>
-          <h2 className="mb-1 text-3xl font-bold text-gray-900">
-            All matched!
-          </h2>
-          <p className="mb-6 text-gray-500">{set.title}</p>
-          <div className="mb-8 grid grid-cols-2 gap-4">
-            <div className="rounded-xl bg-orange-50 p-4">
-              <p className="text-3xl font-bold text-orange-600">
-                {formatTime(elapsed)}
-              </p>
-              <p className="mt-1 text-sm text-orange-700">Time</p>
-            </div>
-            <div className="rounded-xl bg-red-50 p-4">
-              <p className="text-3xl font-bold text-red-500">{mistakes}</p>
-              <p className="mt-1 text-sm text-red-600">Mistakes</p>
-            </div>
-          </div>
-          <div className="flex flex-col gap-3">
-            <button
-              onClick={() => initGame(set.cards ?? [])}
-              className="w-full rounded-xl bg-orange-500 py-3 font-semibold text-white transition hover:bg-orange-600"
-            >
-              Play again
-            </button>
-            <Link href={`/dashboard/sets/${setId}`}>
-              <button className="w-full rounded-xl py-3 font-semibold text-orange-600 transition hover:bg-orange-50">
-                Back to set
-              </button>
-            </Link>
-          </div>
-        </div>
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "linear-gradient(135deg,#f97316,#ea580c)",
+          padding: 24,
+        }}
+      >
+        <Card
+          style={{ maxWidth: 480, width: "100%", textAlign: "center" }}
+          styles={{ body: { padding: 40 } }}
+        >
+          <div style={{ fontSize: 48, marginBottom: 12 }}>{star}</div>
+          <Title level={3}>All matched!</Title>
+          <Text type="secondary">{set.title}</Text>
+
+          <Row gutter={16} style={{ margin: "32px 0" }}>
+            <Col span={12}>
+              <Card style={{ background: "#fff7ed" }}>
+                <Statistic
+                  title="Time"
+                  value={formatTime(elapsed)}
+                  valueStyle={{ color: "#ea580c", fontSize: 28 }}
+                />
+              </Card>
+            </Col>
+            <Col span={12}>
+              <Card style={{ background: "#fef2f2" }}>
+                <Statistic
+                  title="Mistakes"
+                  value={mistakes}
+                  valueStyle={{ color: "#dc2626" }}
+                />
+              </Card>
+            </Col>
+          </Row>
+
+          <Row gutter={12}>
+            <Col span={12}>
+              <Button
+                type="primary"
+                block
+                onClick={() => initGame(set.cards ?? [])}
+                style={{ background: "#ea580c", borderColor: "#ea580c" }}
+              >
+                Play again
+              </Button>
+            </Col>
+            <Col span={12}>
+              <Link
+                href={`/dashboard/sets/${setId}`}
+                style={{ display: "block" }}
+              >
+                <Button block>Back to set</Button>
+              </Link>
+            </Col>
+          </Row>
+        </Card>
       </div>
     );
   }
 
+  const tileStyle = (key: string): React.CSSProperties => {
+    const state = tileStates[key] ?? "idle";
+    const base: React.CSSProperties = {
+      borderRadius: 12,
+      padding: "18px 12px",
+      textAlign: "center",
+      fontWeight: 600,
+      fontSize: 14,
+      cursor: "pointer",
+      userSelect: "none",
+      border: "2px solid",
+      transition: "all 0.15s",
+      wordBreak: "break-word",
+      minHeight: 72,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    };
+    switch (state) {
+      case "idle":
+        return {
+          ...base,
+          background: "#fff",
+          borderColor: "#e5e7eb",
+          color: "#111827",
+        };
+      case "selected":
+        return {
+          ...base,
+          background: "#f97316",
+          borderColor: "#f97316",
+          color: "#fff",
+          transform: "scale(1.04)",
+          boxShadow: "0 4px 16px rgba(249,115,22,0.4)",
+        };
+      case "matched":
+        return {
+          ...base,
+          background: "#dcfce7",
+          borderColor: "#86efac",
+          color: "#166534",
+          opacity: 0.5,
+          cursor: "default",
+        };
+      case "wrong":
+        return {
+          ...base,
+          background: "#fee2e2",
+          borderColor: "#fca5a5",
+          color: "#991b1b",
+          animation: "shake 0.3s ease",
+        };
+      default:
+        return base;
+    }
+  };
+
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-br from-orange-500 to-amber-400">
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        background: "linear-gradient(135deg,#f97316,#ea580c)",
+      }}
+    >
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 text-white">
-        <Link
-          href={`/dashboard/sets/${setId}`}
-          className="transition hover:opacity-80"
-        >
-          ✕
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "16px 24px",
+          color: "#fff",
+        }}
+      >
+        <Link href={`/dashboard/sets/${setId}`}>
+          <Button
+            type="text"
+            icon={<CloseOutlined />}
+            style={{ color: "#fff" }}
+          />
         </Link>
-        <span className="font-semibold">{set.title}</span>
-        <span className="rounded-full bg-white/20 px-3 py-1 font-mono text-sm">
+        <Text style={{ color: "#fff", fontWeight: 600 }}>{set.title}</Text>
+        <Tag color="default" style={{ fontFamily: "monospace", fontSize: 13 }}>
           {formatTime(elapsed)}
-        </span>
-      </div>
-      <div className="mb-2 px-6">
-        <p className="text-center text-sm text-white/70">
-          Match each term with its definition · {mistakes} mistake
-          {mistakes !== 1 ? "s" : ""}
-        </p>
+        </Tag>
       </div>
 
-      <div className="flex flex-1 items-center justify-center p-4">
-        <div className="grid w-full max-w-2xl grid-cols-3 gap-3">
+      <div style={{ textAlign: "center", padding: "0 24px 12px" }}>
+        <Text style={{ color: "rgba(255,255,255,0.8)", fontSize: 13 }}>
+          Match each term with its definition · {mistakes} mistake
+          {mistakes !== 1 ? "s" : ""}
+        </Text>
+      </div>
+
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 16,
+        }}
+      >
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: 12,
+            width: "100%",
+            maxWidth: 640,
+          }}
+        >
           {tiles.map((tile) => (
-            <button
+            <div
               key={tile.key}
+              style={tileStyle(tile.key)}
               onClick={() => handleTile(tile.key)}
-              className={tileClass(tile.key)}
             >
               {tile.text}
-            </button>
+            </div>
           ))}
         </div>
       </div>
@@ -291,7 +404,6 @@ export default function MatchPage() {
           25% { transform: translateX(-6px); }
           75% { transform: translateX(6px); }
         }
-        .shake { animation: shake 0.3s ease; }
       `}</style>
     </div>
   );

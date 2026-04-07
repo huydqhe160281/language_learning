@@ -2,26 +2,55 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { App, Popconfirm } from "antd";
-import { Trash2 } from "lucide-react";
+import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
+import {
+  App,
+  Button,
+  Card,
+  Col,
+  Empty,
+  Flex,
+  Input,
+  List,
+  Popconfirm,
+  Row,
+  Select,
+  Spin,
+  Typography,
+} from "@/components/antd-ui";
 import { setsApiClient, StudySet } from "@/lib/api";
 import { DashboardShell } from "../_components/dashboard-shell";
+
+const { Title, Text, Paragraph } = Typography;
 
 export default function SetsPage() {
   const [sets, setSets] = useState<StudySet[]>([]);
   const [loading, setLoading] = useState(true);
+  const [q, setQ] = useState("");
+  const [language, setLanguage] = useState<string>("");
   const { message } = App.useApp();
 
-  const loadSets = () =>
-    setsApiClient
-      .getAll()
-      .then(setSets)
-      .catch(() => setSets([]))
-      .finally(() => setLoading(false));
-
   useEffect(() => {
-    loadSets();
-  }, []);
+    let cancelled = false;
+    setLoading(true);
+    setsApiClient
+      .getAll({
+        q: q.trim() || undefined,
+        language: language || undefined,
+      })
+      .then((rows) => {
+        if (!cancelled) setSets(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setSets([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [q, language]);
 
   const handleDeleteSet = async (id: string) => {
     try {
@@ -36,83 +65,139 @@ export default function SetsPage() {
   return (
     <DashboardShell active="sets">
       <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="mb-8 flex items-center justify-between">
-          <h2 className="text-3xl font-bold text-gray-900">Your Study Sets</h2>
+        {/* Header */}
+        <Flex
+          justify="space-between"
+          align="center"
+          style={{ marginBottom: 24 }}
+        >
+          <Title level={3} style={{ margin: 0 }}>
+            Your Study Sets
+          </Title>
           <Link href="/dashboard/sets/create">
-            <button
-              type="button"
-              className="rounded-lg bg-blue-600 px-6 py-2 font-medium text-white transition hover:bg-blue-700"
-            >
-              + Create New Set
-            </button>
+            <Button type="primary" icon={<PlusOutlined />}>
+              Create New Set
+            </Button>
           </Link>
-        </div>
+        </Flex>
 
-        {loading ? (
-          <p className="text-gray-600">Loading…</p>
-        ) : sets.length === 0 ? (
-          <div className="rounded-xl bg-white p-12 text-center shadow">
-            <div className="mb-4 text-5xl">📚</div>
-            <p className="mb-6 text-lg text-gray-600">
-              You haven&apos;t created any study sets yet.
-            </p>
-            <p className="mb-8 text-gray-500">
-              Create your first study set to start learning Japanese or Chinese
-              with interactive flashcards.
-            </p>
-            <Link href="/dashboard/sets/create">
-              <button
-                type="button"
-                className="rounded-lg bg-blue-600 px-8 py-3 font-medium text-white transition hover:bg-blue-700"
+        {/* Filter bar */}
+        <Card style={{ marginBottom: 24 }}>
+          <Row gutter={[12, 12]} align="middle">
+            <Col xs={24} md={10}>
+              <Text
+                type="secondary"
+                style={{ display: "block", marginBottom: 4, fontSize: 12 }}
               >
-                Create Your First Set
-              </button>
-            </Link>
-          </div>
-        ) : (
-          <ul className="grid gap-4 md:grid-cols-2">
-            {sets.map((s) => (
-              <li key={s.id} className="group relative">
-                <Link
-                  href={`/dashboard/sets/${s.id}`}
-                  className="block rounded-xl border border-gray-100 bg-white p-6 pr-14 shadow transition hover:shadow-md"
-                >
-                  <h3 className="text-xl font-semibold text-gray-900">
-                    {s.title}
-                  </h3>
-                  <p className="mt-1 text-sm text-gray-500">{s.language}</p>
-                  {s.description ? (
-                    <p className="mt-2 line-clamp-2 text-gray-600">
-                      {s.description}
-                    </p>
-                  ) : null}
-                  <p className="mt-3 text-sm text-blue-600">
-                    {s._count?.cards ?? 0} cards
-                  </p>
-                </Link>
+                Search by title
+              </Text>
+              <Input
+                allowClear
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="e.g., Hiragana, HSK 1, Food…"
+              />
+            </Col>
+            <Col xs={24} md={8}>
+              <Text
+                type="secondary"
+                style={{ display: "block", marginBottom: 4, fontSize: 12 }}
+              >
+                Language
+              </Text>
+              <Select
+                style={{ width: "100%" }}
+                value={language || undefined}
+                placeholder="All languages"
+                allowClear
+                onChange={(val) => setLanguage(val ?? "")}
+                options={[
+                  { value: "Japanese", label: "Japanese" },
+                  { value: "Chinese", label: "Chinese" },
+                ]}
+              />
+            </Col>
+            <Col xs={24} md={6} style={{ paddingTop: 20 }}>
+              <Button
+                onClick={() => {
+                  setQ("");
+                  setLanguage("");
+                }}
+                block
+              >
+                Reset
+              </Button>
+            </Col>
+          </Row>
+        </Card>
 
-                {/* Delete button — positioned absolute over the card */}
-                <Popconfirm
-                  title="Xóa bộ từ?"
-                  description="Tất cả thẻ và tiến độ sẽ bị xóa vĩnh viễn."
-                  okText="Xóa"
-                  cancelText="Hủy"
-                  okButtonProps={{ danger: true }}
-                  onConfirm={() => handleDeleteSet(s.id)}
-                >
-                  <button
-                    type="button"
-                    onClick={(e) => e.preventDefault()}
-                    className="absolute top-4 right-4 rounded-lg p-2 text-gray-400 opacity-0 transition group-hover:opacity-100 hover:bg-red-50 hover:text-red-500"
-                    title="Xóa bộ từ"
+        {/* Set list */}
+        <Spin spinning={loading}>
+          {!loading && sets.length === 0 ? (
+            <Card>
+              <Empty
+                description="Chưa có bộ từ nào."
+                style={{ padding: "32px 0" }}
+              >
+                <Link href="/dashboard/sets/create">
+                  <Button type="primary">Create Your First Set</Button>
+                </Link>
+              </Empty>
+            </Card>
+          ) : (
+            <List
+              grid={{ gutter: 16, column: 2 }}
+              dataSource={sets}
+              renderItem={(s) => (
+                <List.Item>
+                  <Card
+                    hoverable
+                    extra={
+                      <Popconfirm
+                        title="Xóa bộ từ?"
+                        description="Tất cả thẻ và tiến độ sẽ bị xóa vĩnh viễn."
+                        okText="Xóa"
+                        cancelText="Hủy"
+                        okButtonProps={{ danger: true }}
+                        onConfirm={() => handleDeleteSet(s.id)}
+                      >
+                        <Button
+                          type="text"
+                          danger
+                          icon={<DeleteOutlined />}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </Popconfirm>
+                    }
+                    styles={{ body: { cursor: "pointer" } }}
+                    onClick={() =>
+                      (window.location.href = `/dashboard/sets/${s.id}`)
+                    }
                   >
-                    <Trash2 size={18} />
-                  </button>
-                </Popconfirm>
-              </li>
-            ))}
-          </ul>
-        )}
+                    <Title level={5} style={{ marginBottom: 4 }}>
+                      {s.title}
+                    </Title>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      {s.language}
+                    </Text>
+                    {s.description && (
+                      <Paragraph
+                        type="secondary"
+                        ellipsis={{ rows: 2 }}
+                        style={{ marginTop: 8, marginBottom: 8, fontSize: 13 }}
+                      >
+                        {s.description}
+                      </Paragraph>
+                    )}
+                    <Text style={{ color: "#2563eb", fontSize: 13 }}>
+                      {s._count?.cards ?? 0} cards
+                    </Text>
+                  </Card>
+                </List.Item>
+              )}
+            />
+          )}
+        </Spin>
       </main>
     </DashboardShell>
   );

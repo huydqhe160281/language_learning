@@ -1,107 +1,121 @@
 "use client";
 
 import Link from "next/link";
+import {
+  Button,
+  Card,
+  Col,
+  Empty,
+  Row,
+  Statistic,
+  Typography,
+} from "@/components/antd-ui";
 import { DashboardShell } from "./_components/dashboard-shell";
+
+const { Title, Text } = Typography;
+
+const STATS = [
+  { label: "Study Sets", value: "—", color: "#2563eb" },
+  { label: "Cards Learned", value: "—", color: "#16a34a" },
+  { label: "Days Streak", value: "—", color: "#7c3aed" },
+  { label: "Total Time", value: "—", color: "#ea580c" },
+];
+
+const QUICK_LINKS = [
+  {
+    title: "Create New Set",
+    desc: "Tạo bộ từ và thêm flashcard",
+    icon: "📝",
+    link: "/dashboard/sets/create",
+  },
+  {
+    title: "My Sets",
+    desc: "Xem và học các bộ của bạn",
+    icon: "📚",
+    link: "/dashboard/sets",
+  },
+  {
+    title: "Progress",
+    desc: "Theo dõi tiến độ",
+    icon: "📊",
+    link: "/dashboard/progress",
+  },
+];
 
 export default function DashboardPage() {
   return (
     <DashboardShell active="home">
       <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="mb-12 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 p-8 text-white">
-          <h2 className="mb-2 text-3xl font-bold">Chào mừng!</h2>
-          <p className="text-lg opacity-90">
+        {/* Hero banner */}
+        <Card
+          bordered={false}
+          style={{
+            background: "linear-gradient(to right, #3b82f6, #4f46e5)",
+            marginBottom: 40,
+          }}
+          styles={{ body: { padding: "32px" } }}
+        >
+          <Title level={3} style={{ color: "#fff", margin: 0 }}>
+            Chào mừng!
+          </Title>
+          <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 16 }}>
             Thêm bộ từ mới hoặc mở &quot;My Sets&quot; để học flashcard, quiz và
             các chế độ khác.
-          </p>
-        </div>
+          </Text>
+        </Card>
 
-        <div className="mb-12 grid gap-6 md:grid-cols-4">
-          {[
-            {
-              label: "Study Sets",
-              value: "—",
-              color: "bg-blue-100 text-blue-600",
-            },
-            {
-              label: "Cards Learned",
-              value: "—",
-              color: "bg-green-100 text-green-600",
-            },
-            {
-              label: "Days Streak",
-              value: "—",
-              color: "bg-purple-100 text-purple-600",
-            },
-            {
-              label: "Total Time",
-              value: "—",
-              color: "bg-orange-100 text-orange-600",
-            },
-          ].map((stat, i) => (
-            <div key={i} className={`${stat.color} rounded-xl p-6`}>
-              <p className="mb-1 text-sm font-medium opacity-75">
-                {stat.label}
-              </p>
-              <p className="text-3xl font-bold">{stat.value}</p>
-            </div>
+        {/* Stats row */}
+        <Row gutter={[16, 16]} style={{ marginBottom: 40 }}>
+          {STATS.map((stat) => (
+            <Col xs={12} md={6} key={stat.label}>
+              <Card>
+                <Statistic
+                  title={stat.label}
+                  value={stat.value}
+                  valueStyle={{ color: stat.color, fontSize: 32 }}
+                />
+              </Card>
+            </Col>
           ))}
-        </div>
+        </Row>
 
-        <div className="mb-12 grid gap-6 md:grid-cols-3">
-          {[
-            {
-              title: "Create New Set",
-              desc: "Tạo bộ từ và thêm flashcard",
-              icon: "📝",
-              link: "/dashboard/sets/create",
-              color: "from-blue-500 to-blue-600",
-            },
-            {
-              title: "My Sets",
-              desc: "Xem và học các bộ của bạn",
-              icon: "📚",
-              link: "/dashboard/sets",
-              color: "from-green-500 to-green-600",
-            },
-            {
-              title: "Progress",
-              desc: "Theo dõi tiến độ",
-              icon: "📊",
-              link: "/dashboard/progress",
-              color: "from-purple-500 to-purple-600",
-            },
-          ].map((card, i) => (
-            <Link key={i} href={card.link}>
-              <div
-                className={`bg-gradient-to-br ${card.color} transform cursor-pointer rounded-xl p-8 text-white transition hover:scale-105 hover:shadow-lg`}
-              >
-                <div className="mb-4 text-4xl">{card.icon}</div>
-                <h3 className="mb-2 text-xl font-bold">{card.title}</h3>
-                <p className="opacity-90">{card.desc}</p>
-              </div>
-            </Link>
+        {/* Quick-link tiles */}
+        <Row gutter={[16, 16]} style={{ marginBottom: 40 }}>
+          {QUICK_LINKS.map((item) => (
+            <Col xs={24} md={8} key={item.title}>
+              <Link href={item.link} style={{ display: "block" }}>
+                <Card
+                  hoverable
+                  style={{ textAlign: "center" }}
+                  styles={{ body: { padding: "32px 24px" } }}
+                >
+                  <div style={{ fontSize: 40, marginBottom: 12 }}>
+                    {item.icon}
+                  </div>
+                  <Title level={5} style={{ margin: "0 0 4px" }}>
+                    {item.title}
+                  </Title>
+                  <Text type="secondary">{item.desc}</Text>
+                </Card>
+              </Link>
+            </Col>
           ))}
-        </div>
+        </Row>
 
-        <div className="rounded-xl bg-white p-8 shadow">
-          <h3 className="mb-6 text-2xl font-bold text-gray-900">
+        {/* Sets placeholder */}
+        <Card>
+          <Title level={4} style={{ marginBottom: 24 }}>
             Your Study Sets
-          </h3>
-          <div className="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 py-12 text-center">
-            <div className="mb-4 text-5xl">📚</div>
-            <p className="mb-4 text-gray-600">
-              Xem danh sách đầy đủ trong My Sets.
-            </p>
+          </Title>
+          <Empty
+            description="Xem danh sách đầy đủ trong My Sets."
+            style={{ padding: "32px 0" }}
+          >
             <Link href="/dashboard/sets">
-              <button
-                type="button"
-                className="rounded-lg bg-blue-600 px-6 py-2 text-white transition hover:bg-blue-700"
-              >
-                Mở My Sets
-              </button>
+              <Button type="primary">Mở My Sets</Button>
             </Link>
-          </div>
-        </div>
+          </Empty>
+        </Card>
       </main>
     </DashboardShell>
   );

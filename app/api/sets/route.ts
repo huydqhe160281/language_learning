@@ -2,12 +2,27 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateLocalUserId } from "@/lib/local-user";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const userId = await getOrCreateLocalUserId();
 
+    const { searchParams } = new URL(request.url);
+    const q = (searchParams.get("q") ?? "").trim();
+    const language = (searchParams.get("language") ?? "").trim();
+
     const sets = await prisma.set.findMany({
-      where: { userId },
+      where: {
+        userId,
+        ...(language ? { language } : {}),
+        ...(q
+          ? {
+              title: {
+                contains: q,
+                mode: "insensitive",
+              },
+            }
+          : {}),
+      },
       select: {
         id: true,
         title: true,

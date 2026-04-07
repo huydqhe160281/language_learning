@@ -3,14 +3,30 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { CheckOutlined, CloseOutlined, MinusOutlined } from "@ant-design/icons";
+import {
+  Alert,
+  Button,
+  Card,
+  Col,
+  List,
+  Progress,
+  Row,
+  Spin,
+  Statistic,
+  Tag,
+  Typography,
+} from "@/components/antd-ui";
 import {
   setsApiClient,
   progressApiClient,
   studySessionsApiClient,
   StudySet,
-  Card,
+  Card as FlashCard,
   UpdateProgressRequest,
 } from "@/lib/api";
+
+const { Title, Text } = Typography;
 
 type Phase = "preview" | "answer" | "result";
 type Verdict = "correct" | "almost" | "wrong";
@@ -19,26 +35,38 @@ function normalize(s: string) {
   return s.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+function levenshtein(a: string, b: string): number {
+  const m = a.length,
+    n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, (_, i) =>
+    Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)),
+  );
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] =
+        a[i - 1] === b[j - 1]
+          ? dp[i - 1][j - 1]
+          : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+  return dp[m][n];
+}
+
 export default function LearnPage() {
   const params = useParams();
   const setId = typeof params.id === "string" ? params.id : "";
 
   const [set, setSet] = useState<StudySet | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const [deck, setDeck] = useState<Card[]>([]);
+  const [deck, setDeck] = useState<FlashCard[]>([]);
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>("preview");
   const [input, setInput] = useState("");
   const [verdict, setVerdict] = useState<Verdict | null>(null);
-  const [results, setResults] = useState<{ card: Card; verdict: Verdict }[]>(
-    [],
-  );
+  const [results, setResults] = useState<
+    { card: FlashCard; verdict: Verdict }[]
+  >([]);
   const [finished, setFinished] = useState(false);
-  const [startTime] = useState(Date.now());
-  // Accumulate progress updates locally; flush in one batch call at session end
+  const [startTime] = useState(() => Date.now());
   const pendingProgressRef = useRef<UpdateProgressRequest[]>([]);
-
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -55,6 +83,7 @@ export default function LearnPage() {
 
   const current = deck[index];
   const total = deck.length;
+  const progressPct = total > 0 ? Math.round((index / total) * 100) : 0;
 
   const startAnswer = () => {
     setPhase("answer");
@@ -79,8 +108,6 @@ export default function LearnPage() {
     }
     setVerdict(v);
     setPhase("result");
-
-    // Queue locally — will be flushed at session end in one batch request
     pendingProgressRef.current.push({
       cardId: current.id,
       setId,
@@ -98,7 +125,6 @@ export default function LearnPage() {
       setFinished(true);
       const duration = Math.round((Date.now() - startTime) / 1000);
       const correct = newResults.filter((r) => r.verdict === "correct").length;
-      // Flush all accumulated progress updates in one batch call
       const pending = pendingProgressRef.current;
       if (pending.length > 0) {
         progressApiClient.batchUpdate({ updates: pending }).catch(() => {});
@@ -128,27 +154,51 @@ export default function LearnPage() {
     setVerdict(null);
     setResults([]);
     setFinished(false);
+    pendingProgressRef.current = [];
   };
+
+  const verdictAlertType =
+    verdict === "correct"
+      ? "success"
+      : verdict === "almost"
+        ? "warning"
+        : "error";
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-teal-600 to-emerald-500">
-        <p className="text-xl text-white">Loading…</p>
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "linear-gradient(135deg,#0d9488,#059669)",
+        }}
+      >
+        <Spin size="large" tip="Loading…" />
       </div>
     );
   }
+
   if (!set || deck.length === 0) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-teal-600 to-emerald-500 p-4">
-        <div className="w-full max-w-sm rounded-2xl bg-white p-10 text-center">
-          <p className="mb-4 text-gray-600">No cards to learn.</p>
-          <Link
-            href={`/dashboard/sets/${setId}`}
-            className="text-blue-600 hover:underline"
-          >
-            ← Back to set
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "linear-gradient(135deg,#0d9488,#059669)",
+          padding: 24,
+        }}
+      >
+        <Card style={{ maxWidth: 400, width: "100%", textAlign: "center" }}>
+          <Text>No cards to learn.</Text>
+          <br />
+          <Link href={`/dashboard/sets/${setId}`}>
+            <Button type="link">← Back to set</Button>
           </Link>
-        </div>
+        </Card>
       </div>
     );
   }
@@ -157,142 +207,261 @@ export default function LearnPage() {
     const correct = results.filter((r) => r.verdict === "correct").length;
     const almost = results.filter((r) => r.verdict === "almost").length;
     const wrong = results.filter((r) => r.verdict === "wrong").length;
+
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-teal-600 to-emerald-500 p-4">
-        <div className="w-full max-w-lg rounded-2xl bg-white p-10 shadow-2xl">
-          <div className="mb-8 text-center">
-            <div className="mb-4 text-6xl">📖</div>
-            <h2 className="mb-1 text-3xl font-bold text-gray-900">
-              Round complete!
-            </h2>
-            <p className="text-gray-500">{set.title}</p>
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "linear-gradient(135deg,#0d9488,#059669)",
+          padding: 24,
+        }}
+      >
+        <Card
+          style={{ maxWidth: 560, width: "100%" }}
+          styles={{ body: { padding: 40 } }}
+        >
+          <div style={{ textAlign: "center", marginBottom: 32 }}>
+            <div style={{ fontSize: 64, marginBottom: 16 }}>📖</div>
+            <Title level={3}>Round complete!</Title>
+            <Text type="secondary">{set.title}</Text>
           </div>
-          <div className="mb-8 grid grid-cols-3 gap-3">
-            <div className="rounded-xl bg-green-50 p-4 text-center">
-              <p className="text-2xl font-bold text-green-600">{correct}</p>
-              <p className="mt-1 text-xs text-green-700">Correct</p>
-            </div>
-            <div className="rounded-xl bg-yellow-50 p-4 text-center">
-              <p className="text-2xl font-bold text-yellow-600">{almost}</p>
-              <p className="mt-1 text-xs text-yellow-700">Almost</p>
-            </div>
-            <div className="rounded-xl bg-red-50 p-4 text-center">
-              <p className="text-2xl font-bold text-red-500">{wrong}</p>
-              <p className="mt-1 text-xs text-red-600">Wrong</p>
-            </div>
-          </div>
-          <div className="mb-6 flex max-h-56 flex-col gap-2 overflow-y-auto">
-            {results.map(({ card, verdict }) => (
-              <div
-                key={card.id}
-                className={`flex items-center gap-3 rounded-lg px-4 py-2 text-sm ${
-                  verdict === "correct"
-                    ? "bg-green-50 text-green-700"
-                    : verdict === "almost"
-                      ? "bg-yellow-50 text-yellow-700"
-                      : "bg-red-50 text-red-600"
-                }`}
+
+          <Row gutter={12} style={{ marginBottom: 24 }}>
+            <Col span={8}>
+              <Card style={{ background: "#f0fdf4", textAlign: "center" }}>
+                <Statistic
+                  title="Correct"
+                  value={correct}
+                  valueStyle={{ color: "#16a34a" }}
+                />
+              </Card>
+            </Col>
+            <Col span={8}>
+              <Card style={{ background: "#fefce8", textAlign: "center" }}>
+                <Statistic
+                  title="Almost"
+                  value={almost}
+                  valueStyle={{ color: "#ca8a04" }}
+                />
+              </Card>
+            </Col>
+            <Col span={8}>
+              <Card style={{ background: "#fef2f2", textAlign: "center" }}>
+                <Statistic
+                  title="Wrong"
+                  value={wrong}
+                  valueStyle={{ color: "#dc2626" }}
+                />
+              </Card>
+            </Col>
+          </Row>
+
+          <List
+            size="small"
+            style={{ maxHeight: 220, overflowY: "auto", marginBottom: 24 }}
+            dataSource={results}
+            renderItem={({ card, verdict: v }) => (
+              <List.Item
+                style={{
+                  padding: "6px 12px",
+                  background:
+                    v === "correct"
+                      ? "#f0fdf4"
+                      : v === "almost"
+                        ? "#fefce8"
+                        : "#fef2f2",
+                  borderRadius: 8,
+                  marginBottom: 4,
+                }}
               >
-                <span>
-                  {verdict === "correct"
-                    ? "✓"
-                    : verdict === "almost"
-                      ? "~"
-                      : "✗"}
-                </span>
-                <span className="font-medium">{card.front}</span>
-                <span className="ml-auto opacity-70">{card.back}</span>
-              </div>
-            ))}
-          </div>
-          <div className="flex flex-col gap-3">
-            <button
-              onClick={restart}
-              className="w-full rounded-xl bg-teal-600 py-3 font-semibold text-white transition hover:bg-teal-700"
-            >
-              Study again
-            </button>
-            <Link href={`/dashboard/sets/${setId}`}>
-              <button className="w-full rounded-xl py-3 font-semibold text-teal-600 transition hover:bg-teal-50">
-                Back to set
-              </button>
-            </Link>
-          </div>
-        </div>
+                <Tag
+                  icon={
+                    v === "correct" ? (
+                      <CheckOutlined />
+                    ) : v === "almost" ? (
+                      <MinusOutlined />
+                    ) : (
+                      <CloseOutlined />
+                    )
+                  }
+                  color={
+                    v === "correct"
+                      ? "success"
+                      : v === "almost"
+                        ? "warning"
+                        : "error"
+                  }
+                />
+                <Text strong style={{ marginLeft: 8 }}>
+                  {card.front}
+                </Text>
+                <Text
+                  type="secondary"
+                  style={{ marginLeft: "auto", fontSize: 12 }}
+                >
+                  {card.back}
+                </Text>
+              </List.Item>
+            )}
+          />
+
+          <Row gutter={12}>
+            <Col span={12}>
+              <Button
+                type="primary"
+                block
+                onClick={restart}
+                style={{ background: "#0d9488", borderColor: "#0d9488" }}
+              >
+                Study again
+              </Button>
+            </Col>
+            <Col span={12}>
+              <Link
+                href={`/dashboard/sets/${setId}`}
+                style={{ display: "block" }}
+              >
+                <Button block>Back to set</Button>
+              </Link>
+            </Col>
+          </Row>
+        </Card>
       </div>
     );
   }
 
-  const verdictBg =
-    verdict === "correct"
-      ? "bg-green-50 border-green-400"
-      : verdict === "almost"
-        ? "bg-yellow-50 border-yellow-400"
-        : "bg-red-50 border-red-400";
-
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-br from-teal-600 to-emerald-500">
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        background: "linear-gradient(135deg,#0d9488,#059669)",
+      }}
+    >
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 text-white">
-        <Link
-          href={`/dashboard/sets/${setId}`}
-          className="transition hover:opacity-80"
-        >
-          ✕
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "16px 24px",
+          color: "#fff",
+        }}
+      >
+        <Link href={`/dashboard/sets/${setId}`}>
+          <Button
+            type="text"
+            icon={<CloseOutlined />}
+            style={{ color: "#fff" }}
+          />
         </Link>
-        <span className="font-semibold">{set.title}</span>
-        <span className="text-sm opacity-75">
+        <Text style={{ color: "#fff", fontWeight: 600 }}>{set.title}</Text>
+        <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 13 }}>
           {index + 1} / {total}
-        </span>
+        </Text>
       </div>
 
       {/* Progress */}
-      <div className="mb-2 px-6">
-        <div className="h-1.5 w-full rounded-full bg-white/20">
-          <div
-            className="h-1.5 rounded-full bg-white transition-all duration-300"
-            style={{ width: `${Math.round((index / total) * 100)}%` }}
-          />
-        </div>
+      <div style={{ padding: "0 24px 16px" }}>
+        <Progress
+          percent={progressPct}
+          showInfo={false}
+          strokeColor="#fff"
+          trailColor="rgba(255,255,255,0.2)"
+          size={["100%", 6]}
+        />
       </div>
 
-      <div className="flex flex-1 flex-col items-center justify-center p-6">
-        <div className="w-full max-w-xl">
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 24,
+        }}
+      >
+        <div style={{ width: "100%", maxWidth: 560 }}>
           {/* Preview phase */}
           {phase === "preview" && (
-            <div className="rounded-2xl bg-white p-10 text-center shadow-2xl">
-              <p className="mb-6 text-xs tracking-widest text-gray-400 uppercase">
+            <Card styles={{ body: { padding: 40, textAlign: "center" } }}>
+              <Text
+                type="secondary"
+                style={{
+                  fontSize: 11,
+                  letterSpacing: 3,
+                  textTransform: "uppercase",
+                  display: "block",
+                  marginBottom: 24,
+                }}
+              >
                 Learn this term
-              </p>
-              <p className="mb-4 text-5xl font-bold text-gray-900">
-                {current.front}
-              </p>
-              <div className="mb-8 rounded-xl bg-teal-50 px-6 py-4">
-                <p className="mb-1 text-xs tracking-widest text-teal-500 uppercase">
+              </Text>
+              <Title level={2}>{current.front}</Title>
+              <div
+                style={{
+                  background: "#f0fdfa",
+                  borderRadius: 12,
+                  padding: "16px 24px",
+                  marginBottom: 32,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 11,
+                    color: "#0d9488",
+                    textTransform: "uppercase",
+                    letterSpacing: 2,
+                    display: "block",
+                  }}
+                >
                   Definition
-                </p>
-                <p className="text-2xl font-semibold text-teal-800">
+                </Text>
+                <Title
+                  level={4}
+                  style={{ color: "#134e4a", margin: "8px 0 0" }}
+                >
                   {current.back}
-                </p>
+                </Title>
               </div>
-              <button
+              <Button
+                type="primary"
+                size="large"
+                block
                 onClick={startAnswer}
-                className="w-full rounded-xl bg-teal-600 py-3 text-lg font-semibold text-white transition hover:bg-teal-700"
+                style={{ background: "#0d9488", borderColor: "#0d9488" }}
               >
                 I know it, test me →
-              </button>
-            </div>
+              </Button>
+            </Card>
           )}
 
           {/* Answer phase */}
           {phase === "answer" && (
-            <div className="rounded-2xl bg-white p-10 shadow-2xl">
-              <p className="mb-4 text-center text-xs tracking-widest text-gray-400 uppercase">
+            <Card styles={{ body: { padding: 40 } }}>
+              <Text
+                type="secondary"
+                style={{
+                  fontSize: 11,
+                  letterSpacing: 3,
+                  textTransform: "uppercase",
+                  display: "block",
+                  textAlign: "center",
+                  marginBottom: 16,
+                }}
+              >
                 Type the definition
-              </p>
-              <p className="mb-8 text-center text-4xl font-bold text-gray-900">
+              </Text>
+              <Title
+                level={2}
+                style={{ textAlign: "center", marginBottom: 32 }}
+              >
                 {current.front}
-              </p>
+              </Title>
               <input
                 ref={inputRef}
                 value={input}
@@ -301,78 +470,95 @@ export default function LearnPage() {
                   e.key === "Enter" && input.trim() && submitAnswer()
                 }
                 placeholder="Type your answer…"
-                className="w-full rounded-xl border-2 border-gray-200 px-4 py-3 text-lg focus:border-teal-500 focus:outline-none"
+                style={{
+                  width: "100%",
+                  padding: "12px 16px",
+                  fontSize: 16,
+                  border: "2px solid #e5e7eb",
+                  borderRadius: 12,
+                  outline: "none",
+                  marginBottom: 16,
+                }}
+                onFocus={(e) => (e.target.style.borderColor = "#0d9488")}
+                onBlur={(e) => (e.target.style.borderColor = "#e5e7eb")}
               />
-              <button
-                onClick={submitAnswer}
+              <Button
+                type="primary"
+                size="large"
+                block
                 disabled={!input.trim()}
-                className="mt-4 w-full rounded-xl bg-teal-600 py-3 font-semibold text-white transition hover:bg-teal-700 disabled:opacity-40"
+                onClick={submitAnswer}
+                style={{ background: "#0d9488", borderColor: "#0d9488" }}
               >
                 Check
-              </button>
-            </div>
+              </Button>
+            </Card>
           )}
 
           {/* Result phase */}
-          {phase === "result" && (
-            <div
-              className={`rounded-2xl border-2 bg-white p-10 shadow-2xl ${verdictBg}`}
-            >
-              <div className="mb-6 text-center">
-                {verdict === "correct" && (
-                  <p className="text-xl font-bold text-green-600">✓ Correct!</p>
-                )}
-                {verdict === "almost" && (
-                  <p className="text-xl font-bold text-yellow-600">
-                    ~ Almost right
-                  </p>
-                )}
-                {verdict === "wrong" && (
-                  <p className="text-xl font-bold text-red-600">✗ Incorrect</p>
-                )}
-              </div>
-              <p className="mb-6 text-center text-4xl font-bold text-gray-900">
+          {phase === "result" && verdict && (
+            <Card styles={{ body: { padding: 40 } }}>
+              <Alert
+                type={verdictAlertType}
+                message={
+                  verdict === "correct"
+                    ? "✓ Correct!"
+                    : verdict === "almost"
+                      ? "~ Almost right"
+                      : "✗ Incorrect"
+                }
+                style={{ marginBottom: 24 }}
+              />
+              <Title
+                level={2}
+                style={{ textAlign: "center", marginBottom: 24 }}
+              >
                 {current.front}
-              </p>
+              </Title>
               {verdict !== "correct" && (
-                <div className="mb-4 space-y-2">
-                  <div className="rounded-lg bg-gray-50 px-4 py-2">
-                    <p className="text-xs text-gray-400">Your answer</p>
-                    <p className="font-medium text-gray-700">{input}</p>
+                <div style={{ marginBottom: 24 }}>
+                  <div
+                    style={{
+                      background: "#f9fafb",
+                      borderRadius: 8,
+                      padding: "10px 16px",
+                      marginBottom: 8,
+                    }}
+                  >
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      Your answer
+                    </Text>
+                    <div style={{ fontWeight: 500 }}>{input}</div>
                   </div>
-                  <div className="rounded-lg bg-teal-50 px-4 py-2">
-                    <p className="text-xs text-teal-500">Correct answer</p>
-                    <p className="font-semibold text-teal-800">
+                  <div
+                    style={{
+                      background: "#f0fdfa",
+                      borderRadius: 8,
+                      padding: "10px 16px",
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, color: "#0d9488" }}>
+                      Correct answer
+                    </Text>
+                    <div style={{ fontWeight: 600, color: "#134e4a" }}>
                       {current.back}
-                    </p>
+                    </div>
                   </div>
                 </div>
               )}
-              <button
+              <Button
+                type="primary"
+                size="large"
+                block
                 onClick={advance}
-                className="mt-4 w-full rounded-xl bg-teal-600 py-3 font-semibold text-white transition hover:bg-teal-700"
+                style={{ background: "#0d9488", borderColor: "#0d9488" }}
               >
                 {index + 1 >= total ? "Finish" : "Continue →"}
-              </button>
-            </div>
+              </Button>
+            </Card>
           )}
         </div>
       </div>
     </div>
   );
-}
-
-function levenshtein(a: string, b: string): number {
-  const m = a.length,
-    n = b.length;
-  const dp: number[][] = Array.from({ length: m + 1 }, (_, i) =>
-    Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)),
-  );
-  for (let i = 1; i <= m; i++)
-    for (let j = 1; j <= n; j++)
-      dp[i][j] =
-        a[i - 1] === b[j - 1]
-          ? dp[i - 1][j - 1]
-          : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
-  return dp[m][n];
 }

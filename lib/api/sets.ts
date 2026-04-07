@@ -18,8 +18,11 @@ export class SetsApiClient {
   }
 
   /** List all sets for the local user. */
-  async getAll(): Promise<StudySet[]> {
-    const res = await this.httpClient.get<StudySet[]>("/api/sets");
+  async getAll(params?: {
+    q?: string;
+    language?: string;
+  }): Promise<StudySet[]> {
+    const res = await this.httpClient.get<StudySet[]>("/api/sets", { params });
     return res.data;
   }
 

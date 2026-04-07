@@ -3,12 +3,25 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
+import { CloseOutlined } from "@ant-design/icons";
+import {
+  Button,
+  Card,
+  Col,
+  Progress,
+  Row,
+  Spin,
+  Statistic,
+  Typography,
+} from "@/components/antd-ui";
 import {
   setsApiClient,
   studySessionsApiClient,
   StudySet,
-  Card,
+  Card as FlashCard,
 } from "@/lib/api";
+
+const { Title, Text } = Typography;
 
 export default function FlashcardPage() {
   const params = useParams();
@@ -16,15 +29,13 @@ export default function FlashcardPage() {
 
   const [set, setSet] = useState<StudySet | null>(null);
   const [loading, setLoading] = useState(true);
-
-  // deck = shuffled cards; index = current position
-  const [deck, setDeck] = useState<Card[]>([]);
+  const [deck, setDeck] = useState<FlashCard[]>([]);
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [known, setKnown] = useState<Set<string>>(new Set());
   const [unknown, setUnknown] = useState<Set<string>>(new Set());
   const [finished, setFinished] = useState(false);
-  const [startTime] = useState(Date.now());
+  const [startTime] = useState(() => Date.now());
 
   useEffect(() => {
     if (!setId) return;
@@ -43,7 +54,7 @@ export default function FlashcardPage() {
 
   const current = deck[index];
   const total = deck.length;
-  const progress = total > 0 ? Math.round((index / total) * 100) : 0;
+  const progressPct = total > 0 ? Math.round((index / total) * 100) : 0;
 
   const advance = useCallback(() => {
     setFlipped(false);
@@ -96,173 +107,295 @@ export default function FlashcardPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-indigo-600 to-blue-500">
-        <p className="text-xl text-white">Loading…</p>
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "linear-gradient(135deg,#4f46e5,#2563eb)",
+        }}
+      >
+        <Spin size="large" tip="Loading…" />
       </div>
     );
   }
 
   if (!set || deck.length === 0) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-indigo-600 to-blue-500 p-4">
-        <div className="w-full max-w-sm rounded-2xl bg-white p-10 text-center">
-          <p className="mb-6 text-gray-600">No cards in this set.</p>
-          <Link
-            href={`/dashboard/sets/${setId}`}
-            className="text-blue-600 hover:underline"
-          >
-            ← Back to set
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "linear-gradient(135deg,#4f46e5,#2563eb)",
+          padding: 24,
+        }}
+      >
+        <Card style={{ maxWidth: 400, width: "100%", textAlign: "center" }}>
+          <Text>No cards in this set.</Text>
+          <br />
+          <Link href={`/dashboard/sets/${setId}`}>
+            <Button type="link">← Back to set</Button>
           </Link>
-        </div>
+        </Card>
       </div>
     );
   }
 
   if (finished) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-indigo-600 to-blue-500 p-4">
-        <div className="w-full max-w-md rounded-2xl bg-white p-10 text-center shadow-2xl">
-          <div className="mb-4 text-6xl">🎉</div>
-          <h2 className="mb-2 text-3xl font-bold text-gray-900">
-            Round complete!
-          </h2>
-          <p className="mb-8 text-gray-500">{set.title}</p>
-          <div className="mb-8 grid grid-cols-2 gap-4">
-            <div className="rounded-xl bg-green-50 p-4">
-              <p className="text-3xl font-bold text-green-600">{known.size}</p>
-              <p className="mt-1 text-sm text-green-700">Got it</p>
-            </div>
-            <div className="rounded-xl bg-red-50 p-4">
-              <p className="text-3xl font-bold text-red-500">{unknown.size}</p>
-              <p className="mt-1 text-sm text-red-600">Still learning</p>
-            </div>
-          </div>
-          <div className="flex flex-col gap-3">
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "linear-gradient(135deg,#4f46e5,#2563eb)",
+          padding: 24,
+        }}
+      >
+        <Card
+          style={{ maxWidth: 480, width: "100%", textAlign: "center" }}
+          styles={{ body: { padding: 40 } }}
+        >
+          <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
+          <Title level={3}>Round complete!</Title>
+          <Text type="secondary">{set.title}</Text>
+
+          <Row gutter={16} style={{ margin: "32px 0" }}>
+            <Col span={12}>
+              <Card style={{ background: "#f0fdf4" }}>
+                <Statistic
+                  title="Got it"
+                  value={known.size}
+                  valueStyle={{ color: "#16a34a" }}
+                />
+              </Card>
+            </Col>
+            <Col span={12}>
+              <Card style={{ background: "#fef2f2" }}>
+                <Statistic
+                  title="Still learning"
+                  value={unknown.size}
+                  valueStyle={{ color: "#dc2626" }}
+                />
+              </Card>
+            </Col>
+          </Row>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {unknown.size > 0 && (
-              <button
-                onClick={restartUnknown}
-                className="w-full rounded-xl bg-blue-600 py-3 font-semibold text-white transition hover:bg-blue-700"
-              >
+              <Button type="primary" block onClick={restartUnknown}>
                 Study {unknown.size} missed cards
-              </button>
+              </Button>
             )}
-            <button
-              onClick={restart}
-              className="w-full rounded-xl border-2 border-gray-200 py-3 font-semibold text-gray-700 transition hover:bg-gray-50"
-            >
+            <Button block onClick={restart}>
               Restart all
-            </button>
+            </Button>
             <Link href={`/dashboard/sets/${setId}`}>
-              <button className="w-full rounded-xl py-3 font-semibold text-blue-600 transition hover:bg-blue-50">
+              <Button type="link" block>
                 Back to set
-              </button>
+              </Button>
             </Link>
           </div>
-        </div>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-br from-indigo-600 to-blue-500">
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        background: "linear-gradient(135deg,#4f46e5,#2563eb)",
+      }}
+    >
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 text-white">
-        <Link
-          href={`/dashboard/sets/${setId}`}
-          className="transition hover:opacity-80"
-        >
-          ✕
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "16px 24px",
+          color: "#fff",
+        }}
+      >
+        <Link href={`/dashboard/sets/${setId}`}>
+          <Button
+            type="text"
+            icon={<CloseOutlined />}
+            style={{ color: "#fff" }}
+          />
         </Link>
-        <span className="font-semibold">{set.title}</span>
-        <span className="text-sm opacity-75">
+        <Text style={{ color: "#fff", fontWeight: 600 }}>{set.title}</Text>
+        <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 13 }}>
           {index + 1} / {total}
-        </span>
+        </Text>
       </div>
 
       {/* Progress bar */}
-      <div className="px-6">
-        <div className="h-1.5 w-full rounded-full bg-white/20">
-          <div
-            className="h-1.5 rounded-full bg-white transition-all duration-300"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-        <div className="mt-1 flex justify-between text-xs text-white/60">
-          <span>{known.size} known</span>
-          <span>{unknown.size} learning</span>
+      <div style={{ padding: "0 24px 8px" }}>
+        <Progress
+          percent={progressPct}
+          showInfo={false}
+          strokeColor="#fff"
+          trailColor="rgba(255,255,255,0.2)"
+          size={["100%", 6]}
+        />
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            marginTop: 4,
+          }}
+        >
+          <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 12 }}>
+            {known.size} known
+          </Text>
+          <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 12 }}>
+            {unknown.size} learning
+          </Text>
         </div>
       </div>
 
-      {/* Card */}
-      <div className="flex flex-1 flex-col items-center justify-center p-6">
+      {/* Flip card */}
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 24,
+        }}
+      >
         <div
-          className="relative w-full max-w-2xl cursor-pointer"
-          style={{ perspective: "1200px" }}
+          style={{
+            width: "100%",
+            maxWidth: 640,
+            perspective: 1200,
+            cursor: "pointer",
+          }}
           onClick={() => setFlipped((f) => !f)}
         >
           <div
-            className="relative w-full transition-transform duration-500"
             style={{
+              position: "relative",
+              minHeight: 280,
+              transition: "transform 0.5s",
               transformStyle: "preserve-3d",
               transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
-              minHeight: "280px",
             }}
           >
             {/* Front */}
             <div
-              className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl bg-white p-10 shadow-2xl"
-              style={{ backfaceVisibility: "hidden" }}
+              style={{
+                position: "absolute",
+                inset: 0,
+                backfaceVisibility: "hidden",
+                borderRadius: 16,
+                background: "#fff",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: 40,
+                boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+              }}
             >
-              <p className="mb-4 text-xs tracking-widest text-gray-400 uppercase">
+              <Text
+                type="secondary"
+                style={{
+                  fontSize: 11,
+                  letterSpacing: 3,
+                  textTransform: "uppercase",
+                  marginBottom: 16,
+                }}
+              >
                 Term
-              </p>
-              <p className="text-center text-4xl font-bold text-gray-900">
+              </Text>
+              <Title level={2} style={{ textAlign: "center", margin: 0 }}>
                 {current.front}
-              </p>
-              <p className="mt-6 text-sm text-gray-400">Click to flip</p>
+              </Title>
+              <Text type="secondary" style={{ marginTop: 24, fontSize: 13 }}>
+                Click to flip
+              </Text>
             </div>
             {/* Back */}
             <div
-              className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl bg-indigo-50 p-10 shadow-2xl"
               style={{
+                position: "absolute",
+                inset: 0,
                 backfaceVisibility: "hidden",
+                borderRadius: 16,
+                background: "#eef2ff",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: 40,
+                boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
                 transform: "rotateY(180deg)",
               }}
             >
-              <p className="mb-4 text-xs tracking-widest text-indigo-400 uppercase">
+              <Text
+                style={{
+                  color: "#818cf8",
+                  fontSize: 11,
+                  letterSpacing: 3,
+                  textTransform: "uppercase",
+                  marginBottom: 16,
+                }}
+              >
                 Definition
-              </p>
-              <p className="text-center text-4xl font-bold text-indigo-900">
+              </Text>
+              <Title
+                level={2}
+                style={{ textAlign: "center", color: "#3730a3", margin: 0 }}
+              >
                 {current.back}
-              </p>
+              </Title>
             </div>
           </div>
         </div>
 
-        {/* Action buttons — shown after flip */}
+        {/* Action buttons shown after flip */}
         <div
-          className={`mt-8 flex gap-4 transition-opacity duration-300 ${
-            flipped ? "opacity-100" : "pointer-events-none opacity-0"
-          }`}
+          style={{
+            marginTop: 32,
+            display: "flex",
+            gap: 16,
+            opacity: flipped ? 1 : 0,
+            pointerEvents: flipped ? "auto" : "none",
+            transition: "opacity 0.3s",
+          }}
         >
-          <button
-            onClick={markUnknown}
-            className="flex items-center gap-2 rounded-xl bg-red-500 px-8 py-3 font-semibold text-white shadow-lg transition hover:bg-red-600"
-          >
+          <Button danger size="large" onClick={markUnknown}>
             ✗ Still learning
-          </button>
-          <button
+          </Button>
+          <Button
+            type="primary"
+            size="large"
             onClick={markKnown}
-            className="flex items-center gap-2 rounded-xl bg-green-500 px-8 py-3 font-semibold text-white shadow-lg transition hover:bg-green-600"
+            style={{ background: "#16a34a", borderColor: "#16a34a" }}
           >
             ✓ Got it
-          </button>
+          </Button>
         </div>
 
-        {/* Keyboard hint */}
-        <p className="mt-6 text-sm text-white/50">
+        <Text
+          style={{
+            marginTop: 24,
+            color: "rgba(255,255,255,0.4)",
+            fontSize: 13,
+          }}
+        >
           Space to flip · ← Still learning · → Got it
-        </p>
+        </Text>
       </div>
     </div>
   );

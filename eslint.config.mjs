@@ -1,6 +1,7 @@
 import tsPlugin from "@typescript-eslint/eslint-plugin";
 import tsParser from "@typescript-eslint/parser";
 import prettierPlugin from "eslint-plugin-prettier/recommended";
+import reactHooks from "eslint-plugin-react-hooks";
 
 /** @type {import("eslint").Linter.Config[]} */
 const eslintConfig = [
@@ -17,9 +18,13 @@ const eslintConfig = [
     },
     plugins: {
       "@typescript-eslint": tsPlugin,
+      "react-hooks": reactHooks,
     },
     rules: {
       ...tsPlugin.configs["recommended"].rules,
+      // Keep React hooks linting, avoid over-strict purity rules.
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/no-unused-vars": [
         "warn",

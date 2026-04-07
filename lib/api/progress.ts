@@ -2,6 +2,7 @@ import { AxiosInstance } from "axios";
 import { createHttpClient } from "@/lib/clients/http-client";
 import {
   Progress,
+  ProgressSummaryResponse,
   UpdateProgressRequest,
   BatchUpdateProgressRequest,
 } from "./types";
@@ -11,6 +12,14 @@ export class ProgressApiClient {
 
   constructor() {
     this.httpClient = createHttpClient();
+  }
+
+  /** Get aggregated progress summary grouped by set. */
+  async getSummary(): Promise<ProgressSummaryResponse> {
+    const res = await this.httpClient.get<ProgressSummaryResponse>(
+      "/api/progress/summary",
+    );
+    return res.data;
   }
 
   /** Get progress records, optionally filtered by set. */

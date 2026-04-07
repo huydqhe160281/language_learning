@@ -99,6 +99,30 @@ export interface BatchUpdateProgressRequest {
   updates: UpdateProgressRequest[];
 }
 
+export interface SetProgressSummary {
+  setId: string;
+  title: string;
+  language: string;
+  totalCards: number;
+  studiedCards: number;
+  unstudiedCards: number;
+  correct: number;
+  incorrect: number;
+  masteryPct: number;
+  dueToday: number;
+}
+
+export interface ProgressSummaryResponse {
+  totalCards: number;
+  studiedCards: number;
+  unstudiedCards: number;
+  totalCorrect: number;
+  totalIncorrect: number;
+  overallMasteryPct: number;
+  dueToday: number;
+  sets: SetProgressSummary[];
+}
+
 export interface CreateStudySessionRequest {
   setId: string;
   mode: string;
