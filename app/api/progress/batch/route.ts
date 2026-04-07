@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateLocalUserId } from "@/lib/local-user";
-import type { Prisma } from "@prisma/client";
 
 function calculateNextReview(
   isCorrect: boolean,
@@ -40,6 +39,14 @@ interface BatchItem {
   isCorrect: boolean;
 }
 
+type ExistingRow = {
+  cardId: string;
+  correct: number;
+  incorrect: number;
+  easeFactor: number;
+  interval: number;
+};
+
 export async function POST(request: NextRequest) {
   try {
     const userId = await getOrCreateLocalUserId();
@@ -67,18 +74,8 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    type ExistingRow = Prisma.ProgressGetPayload<{
-      select: {
-        cardId: true;
-        correct: true;
-        incorrect: true;
-        easeFactor: true;
-        interval: true;
-      };
-    }>;
-
-    const existingMap = new Map(
-      (existing as ExistingRow[]).map((p: ExistingRow) => [p.cardId, p]),
+    const existingMap = new Map<string, ExistingRow>(
+      (existing as ExistingRow[]).map((p) => [p.cardId, p]),
     );
 
     // Run all upserts in a transaction
