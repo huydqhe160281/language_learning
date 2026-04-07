@@ -1,0 +1,106 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+model User {
+  id        String     @id @default(cuid())
+  email     String     @unique
+  name      String?
+  password  String
+  image     String?
+  bio       String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  
+  sets      Set[]
+  progress  Progress[]
+  sessions  StudySession[]
+}
+
+model Set {
+  id        String     @id @default(cuid())
+  title     String
+  description String?
+  language  String     // "Japanese" or "Chinese"
+  isPublic  Boolean    @default(false)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  cards     Card[]
+  progress  Progress[]
+  sessions  StudySession[]
+  
+  @@index([userId])
+}
+
+model Card {
+  id        String     @id @default(cuid())
+  front     String     // Original language (Japanese/Chinese)
+  back      String     // English translation
+  example   String?    // Usage example
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  
+  setId     String
+  set       Set        @relation(fields: [setId], references: [id], onDelete: Cascade)
+  
+  progress  Progress[]
+  
+  @@index([setId])
+}
+
+model Progress {
+  id        String     @id @default(cuid())
+  correct   Int        @default(0)
+  incorrect Int        @default(0)
+  lastReviewedAt DateTime?
+  nextReviewAt  DateTime?
+  interval  Int        @default(1)      // Spaced repetition interval in days
+  easeFactor Float     @default(2.5)    // Spaced repetition ease factor
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  setId     String
+  set       Set        @relation(fields: [setId], references: [id], onDelete: Cascade)
+  
+  cardId    String
+  card      Card       @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, cardId])
+  @@index([userId])
+  @@index([cardId])
+  @@index([nextReviewAt])
+}
+
+model StudySession {
+  id        String     @id @default(cuid())
+  mode      String     // "flashcard", "quiz", "match", "learn"
+  correctCount  Int    @default(0)
+  totalCount    Int    @default(0)
+  duration  Int        // Duration in seconds
+  createdAt DateTime   @default(now())
+  
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  setId     String
+  set       Set        @relation(fields: [setId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([setId])
+}
