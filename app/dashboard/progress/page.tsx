@@ -7,7 +7,6 @@ import {
   Empty,
   Progress,
   Row,
-  Spin,
   Statistic,
   Table,
   Tag,
@@ -141,22 +140,14 @@ const EMPTY_SUMMARY: ProgressSummaryResponse = {
 export default function ProgressPage() {
   const [summary, setSummary] =
     useState<ProgressSummaryResponse>(EMPTY_SUMMARY);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let cancelled = false;
     import("@/lib/api")
       .then(({ progressApiClient }) => progressApiClient.getSummary())
       .then((data) => {
-        if (!cancelled) setSummary(data);
+        setSummary(data);
       })
-      .catch(() => {})
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
+      .catch(() => {});
   }, []);
 
   const {
@@ -177,104 +168,102 @@ export default function ProgressPage() {
           Tiến độ học tập
         </Title>
 
-        <Spin spinning={loading}>
-          <Row gutter={[16, 16]} style={{ marginBottom: 32 }}>
-            <Col xs={12} md={4}>
-              <Card>
-                <Statistic title="Tổng thẻ" value={totalCards} prefix="📚" />
-              </Card>
-            </Col>
-            <Col xs={12} md={4}>
-              <Card>
-                <Statistic
-                  title="Đã học"
-                  value={studiedCards}
-                  prefix="✓"
-                  valueStyle={{ color: "#16a34a" }}
-                />
-              </Card>
-            </Col>
-            <Col xs={12} md={4}>
-              <Card>
-                <Statistic
-                  title="Chưa học"
-                  value={unstudiedCards}
-                  prefix="○"
-                  valueStyle={{
-                    color: unstudiedCards > 0 ? "#dc2626" : "#6b7280",
-                  }}
-                />
-              </Card>
-            </Col>
-            <Col xs={12} md={4}>
-              <Card>
-                <Statistic
-                  title="Đúng"
-                  value={totalCorrect}
-                  prefix="✓"
-                  valueStyle={{ color: "#16a34a" }}
-                />
-              </Card>
-            </Col>
-            <Col xs={12} md={4}>
-              <Card>
-                <Statistic
-                  title="Sai"
-                  value={totalIncorrect}
-                  prefix="✗"
-                  valueStyle={{ color: "#dc2626" }}
-                />
-              </Card>
-            </Col>
-            <Col xs={12} md={4}>
-              <Card>
-                <Statistic
-                  title="Độ thành thạo"
-                  value={overallMasteryPct}
-                  suffix="%"
-                  prefix="🎯"
-                  valueStyle={{ color: "#7c3aed" }}
-                />
-              </Card>
-            </Col>
-          </Row>
-
-          {/* ── Due today banner ── */}
-          {dueToday > 0 && (
-            <Card
-              style={{
-                marginBottom: 24,
-                background: "#fff7ed",
-                borderColor: "#fed7aa",
-              }}
-            >
-              <Text strong style={{ color: "#c2410c" }}>
-                🔔 Bạn có {dueToday} thẻ đến hạn ôn tập hôm nay!
-              </Text>
+        <Row gutter={[16, 16]} style={{ marginBottom: 32 }}>
+          <Col xs={12} md={4}>
+            <Card>
+              <Statistic title="Tổng thẻ" value={totalCards} prefix="📚" />
             </Card>
-          )}
+          </Col>
+          <Col xs={12} md={4}>
+            <Card>
+              <Statistic
+                title="Đã học"
+                value={studiedCards}
+                prefix="✓"
+                valueStyle={{ color: "#16a34a" }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} md={4}>
+            <Card>
+              <Statistic
+                title="Chưa học"
+                value={unstudiedCards}
+                prefix="○"
+                valueStyle={{
+                  color: unstudiedCards > 0 ? "#dc2626" : "#6b7280",
+                }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} md={4}>
+            <Card>
+              <Statistic
+                title="Đúng"
+                value={totalCorrect}
+                prefix="✓"
+                valueStyle={{ color: "#16a34a" }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} md={4}>
+            <Card>
+              <Statistic
+                title="Sai"
+                value={totalIncorrect}
+                prefix="✗"
+                valueStyle={{ color: "#dc2626" }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} md={4}>
+            <Card>
+              <Statistic
+                title="Độ thành thạo"
+                value={overallMasteryPct}
+                suffix="%"
+                prefix="🎯"
+                valueStyle={{ color: "#7c3aed" }}
+              />
+            </Card>
+          </Col>
+        </Row>
 
-          {/* ── Per-set table ── */}
-          <Card title="Chi tiết theo bộ từ">
-            {sets.length === 0 ? (
-              <Empty
-                image={<span style={{ fontSize: 48 }}>📊</span>}
-                imageStyle={{ height: "auto" }}
-                description="Chưa có dữ liệu. Hãy bắt đầu học để xem tiến độ tại đây."
-                style={{ padding: "32px 0" }}
-              />
-            ) : (
-              <Table<SetProgressSummary>
-                dataSource={sets}
-                columns={COLUMNS}
-                rowKey="setId"
-                pagination={sets.length > 10 ? { pageSize: 10 } : false}
-                scroll={{ x: "max-content" }}
-                size="middle"
-              />
-            )}
+        {/* ── Due today banner ── */}
+        {dueToday > 0 && (
+          <Card
+            style={{
+              marginBottom: 24,
+              background: "#fff7ed",
+              borderColor: "#fed7aa",
+            }}
+          >
+            <Text strong style={{ color: "#c2410c" }}>
+              🔔 Bạn có {dueToday} thẻ đến hạn ôn tập hôm nay!
+            </Text>
           </Card>
-        </Spin>
+        )}
+
+        {/* ── Per-set table ── */}
+        <Card title="Chi tiết theo bộ từ">
+          {sets.length === 0 ? (
+            <Empty
+              image={<span style={{ fontSize: 48 }}>📊</span>}
+              imageStyle={{ height: "auto" }}
+              description="Chưa có dữ liệu. Hãy bắt đầu học để xem tiến độ tại đây."
+              style={{ padding: "32px 0" }}
+            />
+          ) : (
+            <Table<SetProgressSummary>
+              dataSource={sets}
+              columns={COLUMNS}
+              rowKey="setId"
+              pagination={sets.length > 10 ? { pageSize: 10 } : false}
+              scroll={{ x: "max-content" }}
+              size="middle"
+            />
+          )}
+        </Card>
       </main>
     </DashboardShell>
   );

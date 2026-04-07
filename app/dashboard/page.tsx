@@ -48,7 +48,7 @@ export default function DashboardPage() {
       <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         {/* Hero banner */}
         <Card
-          bordered={false}
+          variant="borderless"
           style={{
             background: "linear-gradient(to right, #3b82f6, #4f46e5)",
             marginBottom: 40,
@@ -72,7 +72,7 @@ export default function DashboardPage() {
                 <Statistic
                   title={stat.label}
                   value={stat.value}
-                  valueStyle={{ color: stat.color, fontSize: 32 }}
+                  styles={{ content: { color: stat.color, fontSize: 32 } }}
                 />
               </Card>
             </Col>

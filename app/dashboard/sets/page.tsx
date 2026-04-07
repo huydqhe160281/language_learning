@@ -15,7 +15,6 @@ import {
   Popconfirm,
   Row,
   Select,
-  Spin,
   Typography,
 } from "@/components/antd-ui";
 import { setsApiClient, StudySet } from "@/lib/api";
@@ -25,31 +24,22 @@ const { Title, Text, Paragraph } = Typography;
 
 export default function SetsPage() {
   const [sets, setSets] = useState<StudySet[]>([]);
-  const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [language, setLanguage] = useState<string>("");
   const { message } = App.useApp();
 
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
     setsApiClient
       .getAll({
         q: q.trim() || undefined,
         language: language || undefined,
       })
       .then((rows) => {
-        if (!cancelled) setSets(rows);
+        setSets(rows);
       })
       .catch(() => {
-        if (!cancelled) setSets([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+        setSets([]);
       });
-    return () => {
-      cancelled = true;
-    };
   }, [q, language]);
 
   const handleDeleteSet = async (id: string) => {
@@ -132,72 +122,70 @@ export default function SetsPage() {
         </Card>
 
         {/* Set list */}
-        <Spin spinning={loading}>
-          {!loading && sets.length === 0 ? (
-            <Card>
-              <Empty
-                description="Chưa có bộ từ nào."
-                style={{ padding: "32px 0" }}
-              >
-                <Link href="/dashboard/sets/create">
-                  <Button type="primary">Create Your First Set</Button>
-                </Link>
-              </Empty>
-            </Card>
-          ) : (
-            <List
-              grid={{ gutter: 16, column: 2 }}
-              dataSource={sets}
-              renderItem={(s) => (
-                <List.Item>
-                  <Card
-                    hoverable
-                    extra={
-                      <Popconfirm
-                        title="Xóa bộ từ?"
-                        description="Tất cả thẻ và tiến độ sẽ bị xóa vĩnh viễn."
-                        okText="Xóa"
-                        cancelText="Hủy"
-                        okButtonProps={{ danger: true }}
-                        onConfirm={() => handleDeleteSet(s.id)}
-                      >
-                        <Button
-                          type="text"
-                          danger
-                          icon={<DeleteOutlined />}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </Popconfirm>
-                    }
-                    styles={{ body: { cursor: "pointer" } }}
-                    onClick={() =>
-                      (window.location.href = `/dashboard/sets/${s.id}`)
-                    }
-                  >
-                    <Title level={5} style={{ marginBottom: 4 }}>
-                      {s.title}
-                    </Title>
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      {s.language}
-                    </Text>
-                    {s.description && (
-                      <Paragraph
-                        type="secondary"
-                        ellipsis={{ rows: 2 }}
-                        style={{ marginTop: 8, marginBottom: 8, fontSize: 13 }}
-                      >
-                        {s.description}
-                      </Paragraph>
-                    )}
-                    <Text style={{ color: "#2563eb", fontSize: 13 }}>
-                      {s._count?.cards ?? 0} cards
-                    </Text>
-                  </Card>
-                </List.Item>
-              )}
-            />
-          )}
-        </Spin>
+        {sets.length === 0 ? (
+          <Card>
+            <Empty
+              description="Chưa có bộ từ nào."
+              style={{ padding: "32px 0" }}
+            >
+              <Link href="/dashboard/sets/create">
+                <Button type="primary">Create Your First Set</Button>
+              </Link>
+            </Empty>
+          </Card>
+        ) : (
+          <List
+            grid={{ gutter: 16, column: 2 }}
+            dataSource={sets}
+            renderItem={(s) => (
+              <List.Item>
+                <Card
+                  hoverable
+                  extra={
+                    <Popconfirm
+                      title="Xóa bộ từ?"
+                      description="Tất cả thẻ và tiến độ sẽ bị xóa vĩnh viễn."
+                      okText="Xóa"
+                      cancelText="Hủy"
+                      okButtonProps={{ danger: true }}
+                      onConfirm={() => handleDeleteSet(s.id)}
+                    >
+                      <Button
+                        type="text"
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </Popconfirm>
+                  }
+                  styles={{ body: { cursor: "pointer" } }}
+                  onClick={() =>
+                    (window.location.href = `/dashboard/sets/${s.id}`)
+                  }
+                >
+                  <Title level={5} style={{ marginBottom: 4 }}>
+                    {s.title}
+                  </Title>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {s.language}
+                  </Text>
+                  {s.description && (
+                    <Paragraph
+                      type="secondary"
+                      ellipsis={{ rows: 2 }}
+                      style={{ marginTop: 8, marginBottom: 8, fontSize: 13 }}
+                    >
+                      {s.description}
+                    </Paragraph>
+                  )}
+                  <Text style={{ color: "#2563eb", fontSize: 13 }}>
+                    {s._count?.cards ?? 0} cards
+                  </Text>
+                </Card>
+              </List.Item>
+            )}
+          />
+        )}
       </main>
     </DashboardShell>
   );
