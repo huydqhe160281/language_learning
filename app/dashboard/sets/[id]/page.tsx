@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { DeleteOutlined, InboxOutlined, LeftOutlined } from "@ant-design/icons";
-import type { UploadProps } from "antd";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { DeleteOutlined, EditOutlined, LeftOutlined } from "@ant-design/icons";
 import {
   Alert,
   App,
@@ -14,257 +13,29 @@ import {
   Form,
   Input,
   Popconfirm,
-  Spin,
   Table,
   Tabs,
-  Tag,
   Typography,
-  Upload,
 } from "@/components/antd-ui";
-import { setsApiClient, StudySet, ApiError } from "@/lib/api";
+import { CsvImportPanel } from "@/components/dashboard/sets/csv-import-panel";
+import {
+  EditCardModal,
+  type EditCardFormValues,
+} from "@/components/dashboard/sets/edit-card-modal";
+import {
+  EditSetModal,
+  type EditSetFormValues,
+} from "@/components/dashboard/sets/edit-set-modal";
+import { buildSetDetailCardColumns } from "@/components/dashboard/sets/set-detail-card-table-columns";
+import {
+  setsApiClient,
+  StudySet,
+  Card as StudyCard,
+  ApiError,
+} from "@/lib/api";
 import { DashboardShell } from "../../_components/dashboard-shell";
 
 const { Title, Text } = Typography;
-const { Dragger } = Upload;
-
-// ─── CSV parser ───────────────────────────────────────────────────────────────
-
-function parseCSVLine(line: string, delimiter: string): string[] {
-  const cols: string[] = [];
-  let cur = "";
-  let inQuote = false;
-
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (inQuote) {
-      if (ch === '"') {
-        if (line[i + 1] === '"') {
-          cur += '"';
-          i++;
-        } else {
-          inQuote = false;
-        }
-      } else {
-        cur += ch;
-      }
-    } else if (ch === '"') {
-      inQuote = true;
-    } else if (line.startsWith(delimiter, i)) {
-      cols.push(cur);
-      cur = "";
-      i += delimiter.length - 1;
-    } else {
-      cur += ch;
-    }
-  }
-  cols.push(cur);
-  return cols;
-}
-
-interface ParsedCard {
-  front: string;
-  back: string;
-  example: string;
-  isHeader?: boolean;
-}
-
-function parseCSV(text: string): ParsedCard[] {
-  const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
-  const sampleLine = lines.find((l) => l.trim()) ?? "";
-  const delimiter = sampleLine.includes("\t") ? "\t" : ",";
-  const rows: ParsedCard[] = [];
-
-  for (const rawLine of lines) {
-    const line = rawLine.trim();
-    if (!line) continue;
-    const cols = parseCSVLine(line, delimiter);
-    const front = (cols[0] ?? "").trim();
-    const back = (cols[1] ?? "").trim();
-    const example = (cols[2] ?? "").trim();
-    if (!front && !back) continue;
-    rows.push({ front, back, example });
-  }
-
-  if (rows.length > 0) {
-    const f = rows[0].front.toLowerCase();
-    const b = rows[0].back.toLowerCase();
-    if (
-      (f === "front" || f === "term" || f === "word" || f === "kanji") &&
-      (b === "back" || b === "definition" || b === "meaning" || b === "reading")
-    ) {
-      rows[0].isHeader = true;
-    }
-  }
-
-  return rows;
-}
-
-// ─── CSV Import Panel ─────────────────────────────────────────────────────────
-
-interface CsvImportPanelProps {
-  setId: string;
-  onImported: () => void;
-}
-
-function CsvImportPanel({ setId, onImported }: CsvImportPanelProps) {
-  const { message } = App.useApp();
-  const [parsed, setParsed] = useState<ParsedCard[]>([]);
-  const [importing, setImporting] = useState(false);
-
-  const handleFile = useCallback(
-    (file: File) => {
-      if (!file.name.match(/\.(csv|tsv|txt)$/i)) {
-        message.error("Chỉ hỗ trợ file .csv, .tsv hoặc .txt");
-        return false;
-      }
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const text = e.target?.result as string;
-        const rows = parseCSV(text);
-        if (rows.length === 0) {
-          message.warning("Không tìm thấy dữ liệu hợp lệ trong file");
-        }
-        setParsed(rows);
-      };
-      reader.readAsText(file, "utf-8");
-      return false; // prevent antd default upload
-    },
-    [message],
-  );
-
-  const draggerProps: UploadProps = {
-    name: "file",
-    multiple: false,
-    accept: ".csv,.tsv,.txt",
-    beforeUpload: (file) => {
-      handleFile(file);
-      return false;
-    },
-    showUploadList: false,
-  };
-
-  const validRows = parsed.filter((r) => !r.isHeader && r.front && r.back);
-
-  const handleImport = async () => {
-    if (validRows.length === 0) return;
-    setImporting(true);
-    try {
-      const result = await setsApiClient.importCards(setId, {
-        cards: validRows.map((r) => ({
-          front: r.front,
-          back: r.back,
-          ...(r.example ? { example: r.example } : {}),
-        })),
-      });
-      message.success(`Đã import ${result.imported} thẻ thành công`);
-      onImported();
-      setParsed([]);
-    } catch (err) {
-      message.error(err instanceof ApiError ? err.message : "Import thất bại");
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  const previewColumns = [
-    { title: "#", dataIndex: "idx", width: 48 },
-    {
-      title: "Front",
-      dataIndex: "front",
-      render: (v: string) =>
-        v ? <Text strong>{v}</Text> : <Text type="danger">trống</Text>,
-    },
-    {
-      title: "Back",
-      dataIndex: "back",
-      render: (v: string) => (v ? v : <Text type="danger">trống</Text>),
-    },
-    {
-      title: "Example",
-      dataIndex: "example",
-      render: (v: string) => v || <Text type="secondary">—</Text>,
-    },
-    {
-      title: "Status",
-      dataIndex: "status",
-      render: (_: unknown, row: ParsedCard) =>
-        row.isHeader ? (
-          <Tag color="gold">header</Tag>
-        ) : !row.front || !row.back ? (
-          <Tag color="red">bỏ qua</Tag>
-        ) : (
-          <Tag color="green">✓</Tag>
-        ),
-    },
-  ];
-
-  const previewData = parsed.map((row, i) => ({ ...row, idx: i + 1, key: i }));
-
-  return (
-    <div>
-      <Text type="secondary" style={{ fontSize: 12 }}>
-        Mỗi hàng: <Text code>front, back, example (tuỳ chọn)</Text> — cũng hỗ
-        trợ tab-separated (.tsv)
-      </Text>
-
-      <Dragger {...draggerProps} style={{ marginTop: 12, marginBottom: 16 }}>
-        <p className="ant-upload-drag-icon">
-          <InboxOutlined />
-        </p>
-        <p className="ant-upload-text">
-          Kéo thả file vào đây hoặc click để chọn
-        </p>
-        <p className="ant-upload-hint">.csv, .tsv, .txt — UTF-8</p>
-      </Dragger>
-
-      {parsed.length === 0 && (
-        <Card size="small" style={{ background: "#f9fafb" }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            Ví dụ định dạng CSV:
-          </Text>
-          <pre
-            style={{
-              background: "#f3f4f6",
-              padding: "8px 12px",
-              borderRadius: 6,
-              fontSize: 12,
-              marginTop: 8,
-            }}
-          >{`front,back,example\nこんにちは,Hello,こんにちは、元気ですか？\nありがとう,Thank you,\n猫,Cat,猫が好きです`}</pre>
-        </Card>
-      )}
-
-      {parsed.length > 0 && (
-        <>
-          <Text style={{ fontSize: 13 }}>
-            Preview ({validRows.length} thẻ hợp lệ
-            {parsed.length - validRows.length > 0 &&
-              `, ${parsed.length - validRows.length} bỏ qua`}
-            )
-          </Text>
-          <Table
-            size="small"
-            columns={previewColumns}
-            dataSource={previewData}
-            pagination={false}
-            scroll={{ y: 220 }}
-            style={{ marginTop: 8, marginBottom: 16 }}
-          />
-          <Button
-            type="primary"
-            loading={importing}
-            disabled={validRows.length === 0}
-            onClick={handleImport}
-          >
-            {importing ? "Đang import…" : `Import ${validRows.length} thẻ`}
-          </Button>
-        </>
-      )}
-    </div>
-  );
-}
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SetDetailPage() {
   const params = useParams();
@@ -275,10 +46,20 @@ export default function SetDetailPage() {
   const [error, setError] = useState("");
   const [adding, setAdding] = useState(false);
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
+  const [cardsPage, setCardsPage] = useState(1);
+  const [cardsPageSize, setCardsPageSize] = useState(20);
 
   const { message } = App.useApp();
   const [form] = Form.useForm();
+  const [editSetForm] = Form.useForm<EditSetFormValues>();
+  const [editCardForm] = Form.useForm<EditCardFormValues>();
   const loadingRef = useRef(false);
+
+  const [editSetOpen, setEditSetOpen] = useState(false);
+  const [editSetLoading, setEditSetLoading] = useState(false);
+  const [editCardOpen, setEditCardOpen] = useState(false);
+  const [editCardLoading, setEditCardLoading] = useState(false);
+  const [editingCardId, setEditingCardId] = useState<string | null>(null);
 
   const loadSet = useCallback(async () => {
     if (!id || loadingRef.current) return;
@@ -291,6 +72,11 @@ export default function SetDetailPage() {
     } finally {
       loadingRef.current = false;
     }
+  }, [id]);
+
+  useEffect(() => {
+    setCardsPage(1);
+    setCardsPageSize(20);
   }, [id]);
 
   useEffect(() => {
@@ -331,22 +117,25 @@ export default function SetDetailPage() {
     }
   };
 
-  const handleDeleteCard = async (cardId: string) => {
-    try {
-      await setsApiClient.removeCard(id, cardId);
-      message.success("Đã xóa thẻ");
-      setSet((prev) =>
-        prev
-          ? {
-              ...prev,
-              cards: (prev.cards ?? []).filter((c) => c.id !== cardId),
-            }
-          : prev,
-      );
-    } catch {
-      message.error("Không thể xóa thẻ");
-    }
-  };
+  const handleDeleteCard = useCallback(
+    async (cardId: string) => {
+      try {
+        await setsApiClient.removeCard(id, cardId);
+        message.success("Đã xóa thẻ");
+        setSet((prev) =>
+          prev
+            ? {
+                ...prev,
+                cards: (prev.cards ?? []).filter((c) => c.id !== cardId),
+              }
+            : prev,
+        );
+      } catch {
+        message.error("Không thể xóa thẻ");
+      }
+    },
+    [id, message],
+  );
 
   const handleDeleteSelectedCards = async () => {
     const cardIds = selectedCardIds;
@@ -381,38 +170,116 @@ export default function SetDetailPage() {
     }
   };
 
-  const cardColumns = [
-    {
-      title: "Front",
-      dataIndex: "front",
-      width: "30%",
-      render: (v: string) => <Text strong>{v}</Text>,
+  const openEditSetModal = () => {
+    if (!set) return;
+    editSetForm.setFieldsValue({
+      title: set.title,
+      description: set.description ?? "",
+      language: set.language,
+      visibility: set.isPublic ? "public" : "private",
+    });
+    setEditSetOpen(true);
+  };
+
+  const handleSaveSet = async () => {
+    if (!set) return;
+    try {
+      const values = await editSetForm.validateFields();
+      setEditSetLoading(true);
+      const desc = values.description?.trim();
+      const updated = await setsApiClient.update(id, {
+        title: values.title.trim(),
+        description: desc ? desc : null,
+        language: values.language,
+        isPublic: values.visibility === "public",
+      });
+      setSet(updated);
+      message.success("Đã cập nhật bộ từ");
+      setEditSetOpen(false);
+    } catch (err) {
+      if (
+        err &&
+        typeof err === "object" &&
+        "errorFields" in err &&
+        Array.isArray((err as { errorFields: unknown }).errorFields)
+      ) {
+        throw err;
+      }
+      message.error(err instanceof ApiError ? err.message : "Không thể lưu");
+      throw err instanceof Error ? err : new Error("Không thể lưu");
+    } finally {
+      setEditSetLoading(false);
+    }
+  };
+
+  const openEditCardModal = useCallback(
+    (card: StudyCard) => {
+      setEditingCardId(card.id);
+      editCardForm.setFieldsValue({
+        front: card.front,
+        back: card.back,
+        example: card.example ?? "",
+      });
+      setEditCardOpen(true);
     },
-    { title: "Back", dataIndex: "back", width: "30%" },
-    {
-      title: "Example",
-      dataIndex: "example",
-      width: "30%",
-      render: (v: string | null) => (v ? v : <Text type="secondary">—</Text>),
-    },
-    {
-      title: "",
-      key: "actions",
-      width: "10%",
-      render: (_: unknown, record: { id: string }) => (
-        <Popconfirm
-          title="Xóa thẻ này?"
-          okText="Xóa"
-          cancelText="Hủy"
-          okButtonProps={{ danger: true }}
-          onConfirm={() => handleDeleteCard(record.id)}
-          placement="left"
-        >
-          <Button type="text" danger icon={<DeleteOutlined />} size="small" />
-        </Popconfirm>
-      ),
-    },
-  ];
+    [editCardForm],
+  );
+
+  const closeEditCardModal = () => {
+    setEditCardOpen(false);
+    setEditingCardId(null);
+    editCardForm.resetFields();
+  };
+
+  const handleSaveCard = async () => {
+    if (!editingCardId) return;
+    try {
+      const values = await editCardForm.validateFields();
+      setEditCardLoading(true);
+      const ex = values.example?.trim();
+      const updated = await setsApiClient.updateCard(id, editingCardId, {
+        front: values.front.trim(),
+        back: values.back.trim(),
+        example: ex ? ex : null,
+      });
+      setSet((prev) =>
+        prev
+          ? {
+              ...prev,
+              cards: (prev.cards ?? []).map((c) =>
+                c.id === updated.id ? updated : c,
+              ),
+            }
+          : prev,
+      );
+      message.success("Đã cập nhật thẻ");
+      closeEditCardModal();
+    } catch (err) {
+      if (
+        err &&
+        typeof err === "object" &&
+        "errorFields" in err &&
+        Array.isArray((err as { errorFields: unknown }).errorFields)
+      ) {
+        throw err;
+      }
+      message.error(err instanceof ApiError ? err.message : "Không thể lưu");
+      throw err instanceof Error ? err : new Error("Không thể lưu");
+    } finally {
+      setEditCardLoading(false);
+    }
+  };
+
+  const cardColumns = useMemo(
+    () =>
+      buildSetDetailCardColumns({
+        onEditCard: openEditCardModal,
+        onDeleteCard: (cardId) => {
+          void handleDeleteCard(cardId);
+        },
+      }),
+    [openEditCardModal, handleDeleteCard],
+  );
 
   const tabItems = [
     {
@@ -479,22 +346,26 @@ export default function SetDetailPage() {
           <Alert type="error" message={error || "Set not found."} />
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-            {/* Set header */}
             <Card
               extra={
-                <Popconfirm
-                  title="Xóa bộ từ?"
-                  description="Tất cả thẻ và tiến độ sẽ bị xóa vĩnh viễn."
-                  okText="Xóa"
-                  cancelText="Hủy"
-                  okButtonProps={{ danger: true }}
-                  onConfirm={handleDeleteSet}
-                  placement="bottomRight"
-                >
-                  <Button danger icon={<DeleteOutlined />}>
-                    Xóa bộ từ
+                <Flex gap={8} wrap="wrap" justify="flex-end">
+                  <Button icon={<EditOutlined />} onClick={openEditSetModal}>
+                    Chỉnh sửa bộ từ
                   </Button>
-                </Popconfirm>
+                  <Popconfirm
+                    title="Xóa bộ từ?"
+                    description="Tất cả thẻ và tiến độ sẽ bị xóa vĩnh viễn."
+                    okText="Xóa"
+                    cancelText="Hủy"
+                    okButtonProps={{ danger: true }}
+                    onConfirm={handleDeleteSet}
+                    placement="bottomRight"
+                  >
+                    <Button danger icon={<DeleteOutlined />}>
+                      Xóa bộ từ
+                    </Button>
+                  </Popconfirm>
+                </Flex>
               }
             >
               <Title level={3} style={{ marginBottom: 4 }}>
@@ -515,12 +386,10 @@ export default function SetDetailPage() {
               </div>
             </Card>
 
-            {/* Add card section */}
             <Card title="Add Cards">
               <Tabs items={tabItems} />
             </Card>
 
-            {/* Card list */}
             <Card
               title={<Text strong>Cards ({(set.cards ?? []).length})</Text>}
               extra={
@@ -564,13 +433,38 @@ export default function SetDetailPage() {
                     key: c.id,
                   }))}
                   pagination={{
-                    pageSize: 10,
+                    current: cardsPage,
+                    pageSize: cardsPageSize,
                     showSizeChanger: true,
                     pageSizeOptions: ["10", "20", "50"],
+                    onChange: (page, size) => {
+                      setCardsPage(page);
+                      setCardsPageSize(size);
+                    },
+                    onShowSizeChange: (_page, size) => {
+                      setCardsPage(1);
+                      setCardsPageSize(size);
+                    },
                   }}
                 />
               )}
             </Card>
+
+            <EditSetModal
+              open={editSetOpen}
+              onCancel={() => setEditSetOpen(false)}
+              onOk={handleSaveSet}
+              form={editSetForm}
+              confirmLoading={editSetLoading}
+            />
+
+            <EditCardModal
+              open={editCardOpen}
+              onCancel={closeEditCardModal}
+              onOk={handleSaveCard}
+              form={editCardForm}
+              confirmLoading={editCardLoading}
+            />
           </div>
         )}
       </main>

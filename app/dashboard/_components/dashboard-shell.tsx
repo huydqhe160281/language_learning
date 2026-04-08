@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { key: "/dashboard", label: "Home" },
   { key: "/dashboard/sets", label: "My Sets" },
   { key: "/dashboard/progress", label: "Progress" },
+  { key: "/dashboard/profile", label: "Profile" },
 ];
 
 export function DashboardShell({
@@ -18,7 +19,7 @@ export function DashboardShell({
   active,
 }: {
   children: React.ReactNode;
-  active: "home" | "sets" | "progress";
+  active: "home" | "sets" | "progress" | "profile";
 }) {
   const pathname = usePathname();
 
@@ -26,6 +27,7 @@ export function DashboardShell({
     home: "/dashboard",
     sets: "/dashboard/sets",
     progress: "/dashboard/progress",
+    profile: "/dashboard/profile",
   };
 
   const selectedKey = keyMap[active] ?? pathname;

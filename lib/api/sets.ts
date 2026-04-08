@@ -7,6 +7,7 @@ import {
   ImportCardsRequest,
   ImportCardsResponse,
   StudySet,
+  UpdateCardRequest,
   UpdateSetRequest,
 } from "./types";
 
@@ -61,6 +62,19 @@ export class SetsApiClient {
   /** Delete a single card from a set. */
   async removeCard(setId: string, cardId: string): Promise<void> {
     await this.httpClient.delete(`/api/sets/${setId}/cards/${cardId}`);
+  }
+
+  /** Update a card in a set. */
+  async updateCard(
+    setId: string,
+    cardId: string,
+    body: UpdateCardRequest,
+  ): Promise<Card> {
+    const res = await this.httpClient.put<Card>(
+      `/api/sets/${setId}/cards/${cardId}`,
+      body,
+    );
+    return res.data;
   }
 
   /**

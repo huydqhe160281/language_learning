@@ -64,7 +64,7 @@ export interface CreateSetRequest {
 
 export interface UpdateSetRequest {
   title?: string;
-  description?: string;
+  description?: string | null;
   language?: string;
   isPublic?: boolean;
 }
@@ -73,6 +73,12 @@ export interface CreateCardRequest {
   front: string;
   back: string;
   example?: string;
+}
+
+export interface UpdateCardRequest {
+  front: string;
+  back: string;
+  example?: string | null;
 }
 
 export interface ImportCardItem {
