@@ -113,7 +113,7 @@ export default function CreateSetPage() {
                 return err ? (
                   <Alert
                     type="error"
-                    message={err}
+                    title={err}
                     style={{ marginBottom: 16 }}
                   />
                 ) : null;

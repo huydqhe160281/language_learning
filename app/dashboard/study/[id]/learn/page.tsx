@@ -12,7 +12,6 @@ import {
   List,
   Progress,
   Row,
-  Spin,
   Statistic,
   Tag,
   Typography,
@@ -55,7 +54,6 @@ export default function LearnPage() {
   const setId = typeof params.id === "string" ? params.id : "";
 
   const [set, setSet] = useState<StudySet | null>(null);
-  const [loading, setLoading] = useState(true);
   const [deck, setDeck] = useState<FlashCard[]>([]);
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>("preview");
@@ -76,9 +74,8 @@ export default function LearnPage() {
       .then((data) => {
         setSet(data);
         setDeck([...(data.cards ?? [])].sort(() => Math.random() - 0.5));
-        setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {});
   }, [setId]);
 
   const current = deck[index];
@@ -163,22 +160,6 @@ export default function LearnPage() {
       : verdict === "almost"
         ? "warning"
         : "error";
-
-  if (loading) {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "linear-gradient(135deg,#0d9488,#059669)",
-        }}
-      >
-        <Spin size="large" tip="Loading…" />
-      </div>
-    );
-  }
 
   if (!set || deck.length === 0) {
     return (
@@ -500,7 +481,7 @@ export default function LearnPage() {
             <Card styles={{ body: { padding: 40 } }}>
               <Alert
                 type={verdictAlertType}
-                message={
+                title={
                   verdict === "correct"
                     ? "✓ Correct!"
                     : verdict === "almost"

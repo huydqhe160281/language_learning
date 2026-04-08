@@ -12,7 +12,6 @@ import {
   Progress,
   Radio,
   Row,
-  Spin,
   Statistic,
   Typography,
 } from "@/components/antd-ui";
@@ -123,7 +122,6 @@ export default function TestPage() {
   const setId = typeof params.id === "string" ? params.id : "";
 
   const [set, setSet] = useState<StudySet | null>(null);
-  const [loading, setLoading] = useState(true);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [index, setIndex] = useState(0);
   const [finished, setFinished] = useState(false);
@@ -145,9 +143,8 @@ export default function TestPage() {
         setSet(data);
         const cards = data.cards ?? [];
         if (cards.length >= 2) setQuestions(buildQuestions(cards));
-        setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {});
   }, [setId]);
 
   const current = questions[index];
@@ -230,22 +227,6 @@ export default function TestPage() {
       : current?.type === "truefalse"
         ? tfAnswer !== null
         : written.trim().length > 0;
-
-  if (loading) {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "linear-gradient(135deg,#334155,#1e293b)",
-        }}
-      >
-        <Spin size="large" tip="Loading…" />
-      </div>
-    );
-  }
 
   if (!set || (set.cards ?? []).length < 2) {
     return (
@@ -604,7 +585,7 @@ export default function TestPage() {
               {checked && (
                 <Alert
                   type={isCorrect ? "success" : "error"}
-                  message={isCorrect ? "✓ Correct" : "✗ Incorrect"}
+                  title={isCorrect ? "✓ Correct" : "✗ Incorrect"}
                   description={
                     !isCorrect
                       ? `Correct answer: ${current.correct}`
@@ -619,7 +600,7 @@ export default function TestPage() {
           {checked && current.type !== "written" && (
             <Alert
               type={isCorrect ? "success" : "error"}
-              message={
+              title={
                 isCorrect
                   ? "✓ Correct!"
                   : `✗ Correct answer: ${current.card.back}`

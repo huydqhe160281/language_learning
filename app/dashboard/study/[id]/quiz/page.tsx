@@ -11,7 +11,6 @@ import {
   List,
   Progress,
   Row,
-  Spin,
   Tag,
   Typography,
 } from "@/components/antd-ui";
@@ -50,7 +49,6 @@ export default function QuizPage() {
   const setId = typeof params.id === "string" ? params.id : "";
 
   const [set, setSet] = useState<StudySet | null>(null);
-  const [loading, setLoading] = useState(true);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
@@ -67,9 +65,8 @@ export default function QuizPage() {
         setSet(data);
         const cards = data.cards ?? [];
         if (cards.length >= 2) setQuestions(buildQuestions(cards));
-        setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {});
   }, [setId]);
 
   const current = questions[index];
@@ -126,22 +123,6 @@ export default function QuizPage() {
     setFinished(false);
     pendingProgressRef.current = [];
   };
-
-  if (loading) {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "linear-gradient(135deg,#7c3aed,#6d28d9)",
-        }}
-      >
-        <Spin size="large" tip="Loading…" />
-      </div>
-    );
-  }
 
   if (!set || (set.cards ?? []).length < 2) {
     return (
