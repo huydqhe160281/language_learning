@@ -343,7 +343,7 @@ export default function SetDetailPage() {
         </Link>
 
         {error || !set ? (
-          <Alert type="error" message={error || "Set not found."} />
+          <Alert type="error" title={error || "Set not found."} />
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
             <Card

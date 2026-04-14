@@ -41,6 +41,7 @@ export {
   Result,
   Popconfirm,
   Modal,
+  Drawer,
   // Utils
   App,
 } from "antd";

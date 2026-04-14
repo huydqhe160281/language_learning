@@ -1,10 +1,11 @@
 "use client";
 
-import { App } from "antd";
+import { App, ConfigProvider, theme as antdTheme } from "antd";
 import type { MessageInstance } from "antd/es/message/interface";
 import type { ModalStaticFunctions } from "antd/es/modal/confirm";
 import type { NotificationInstance } from "antd/es/notification/interface";
 import { useEffect } from "react";
+import { useTheme } from "@/lib/theme-context";
 
 let _message: MessageInstance;
 let _modal: Omit<ModalStaticFunctions, "warn">;
@@ -40,9 +41,20 @@ function AntdInner({ children }: { children: React.ReactNode }) {
 }
 
 export function AntdProvider({ children }: { children: React.ReactNode }) {
+  const { theme } = useTheme();
+
   return (
-    <App>
-      <AntdInner>{children}</AntdInner>
-    </App>
+    <ConfigProvider
+      theme={{
+        algorithm:
+          theme === "dark"
+            ? antdTheme.darkAlgorithm
+            : antdTheme.defaultAlgorithm,
+      }}
+    >
+      <App>
+        <AntdInner>{children}</AntdInner>
+      </App>
+    </ConfigProvider>
   );
 }

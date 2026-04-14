@@ -270,7 +270,7 @@ export default function QuizPage() {
           percent={progressPct}
           showInfo={false}
           strokeColor="#fff"
-          trailColor="rgba(255,255,255,0.2)"
+          railColor="rgba(255,255,255,0.2)"
           size={["100%", 6]}
         />
         <div

@@ -9,11 +9,11 @@ import {
   Col,
   Progress,
   Row,
-  Spin,
   Statistic,
   Typography,
 } from "@/components/antd-ui";
 import type { Card as FlashCard } from "@/lib/api";
+import { useTheme } from "@/lib/theme-context";
 
 const { Title, Text } = Typography;
 
@@ -24,14 +24,6 @@ const GRADIENT_PAGE: CSSProperties = {
   justifyContent: "center",
   background: "linear-gradient(135deg,#4f46e5,#2563eb)",
 };
-
-export function FlashcardLoadingView() {
-  return (
-    <div style={GRADIENT_PAGE}>
-      <Spin size="large" tip="Loading…" />
-    </div>
-  );
-}
 
 export function FlashcardEmptyView({ setId }: { setId: string }) {
   return (
@@ -76,7 +68,7 @@ export function FlashcardFinishedView({
 
         <Row gutter={16} style={{ margin: "32px 0" }}>
           <Col span={12}>
-            <Card style={{ background: "#f0fdf4" }}>
+            <Card>
               <Statistic
                 title="Got it"
                 value={knownCount}
@@ -85,7 +77,7 @@ export function FlashcardFinishedView({
             </Card>
           </Col>
           <Col span={12}>
-            <Card style={{ background: "#fef2f2" }}>
+            <Card>
               <Statistic
                 title="Still learning"
                 value={unknownCount}
@@ -144,6 +136,9 @@ export function FlashcardActiveView({
   onMarkUnknown,
   onMarkKnown,
 }: FlashcardActiveViewProps) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+
   return (
     <div
       style={{
@@ -180,7 +175,7 @@ export function FlashcardActiveView({
           percent={progressPct}
           showInfo={false}
           strokeColor="#fff"
-          trailColor="rgba(255,255,255,0.2)"
+          railColor="rgba(255,255,255,0.2)"
           size={["100%", 6]}
         />
         <div
@@ -233,7 +228,7 @@ export function FlashcardActiveView({
                 inset: 0,
                 backfaceVisibility: "hidden",
                 borderRadius: 16,
-                background: "#fff",
+                background: "var(--card)",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
@@ -266,7 +261,7 @@ export function FlashcardActiveView({
                 inset: 0,
                 backfaceVisibility: "hidden",
                 borderRadius: 16,
-                background: "#eef2ff",
+                background: isDark ? "#1e1b4b" : "#eef2ff",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
@@ -278,7 +273,7 @@ export function FlashcardActiveView({
             >
               <Text
                 style={{
-                  color: "#818cf8",
+                  color: isDark ? "#a5b4fc" : "#818cf8",
                   fontSize: 11,
                   letterSpacing: 3,
                   textTransform: "uppercase",
@@ -289,7 +284,11 @@ export function FlashcardActiveView({
               </Text>
               <Title
                 level={2}
-                style={{ textAlign: "center", color: "#3730a3", margin: 0 }}
+                style={{
+                  textAlign: "center",
+                  color: isDark ? "#c7d2fe" : "#3730a3",
+                  margin: 0,
+                }}
               >
                 {current.back}
               </Title>

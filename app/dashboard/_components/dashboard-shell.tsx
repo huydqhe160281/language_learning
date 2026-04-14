@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Layout, Menu, Typography } from "@/components/antd-ui";
+import { useState } from "react";
+import { MenuOutlined } from "@ant-design/icons";
+import { Button, Drawer, Layout, Menu, Typography } from "@/components/antd-ui";
 
 const { Header, Content } = Layout;
 const { Title } = Typography;
@@ -22,6 +24,7 @@ export function DashboardShell({
   active: "home" | "sets" | "progress" | "profile";
 }) {
   const pathname = usePathname();
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const keyMap: Record<typeof active, string> = {
     home: "/dashboard",
@@ -34,22 +37,30 @@ export function DashboardShell({
 
   const menuItems = NAV_ITEMS.map((item) => ({
     key: item.key,
-    label: <Link href={item.key}>{item.label}</Link>,
+    label: (
+      <Link href={item.key} onClick={() => setDrawerOpen(false)}>
+        {item.label}
+      </Link>
+    ),
   }));
 
   return (
-    <Layout className="min-h-screen bg-gray-50">
+    <Layout className="min-h-screen">
       <Header
+        className="flex items-center gap-6 px-4 sm:px-8"
         style={{
-          background: "#fff",
-          borderBottom: "1px solid #f0f0f0",
-          padding: "0 32px",
-          display: "flex",
-          alignItems: "center",
-          gap: 32,
+          height: 64,
+          lineHeight: "64px",
+          borderBottom: "1px solid var(--border)",
+          background: "var(--card)",
+          position: "sticky",
+          top: 0,
+          zIndex: 100,
+          padding: undefined,
         }}
       >
-        <Link href="/dashboard">
+        {/* Logo */}
+        <Link href="/dashboard" className="shrink-0">
           <Title
             level={4}
             style={{ margin: 0, color: "#2563eb", lineHeight: "64px" }}
@@ -58,17 +69,47 @@ export function DashboardShell({
           </Title>
         </Link>
 
+        {/* Desktop horizontal nav — hidden on small screens */}
+        <div className="hidden flex-1 md:flex">
+          <Menu
+            mode="horizontal"
+            selectedKeys={[selectedKey]}
+            items={menuItems}
+            style={{
+              flex: 1,
+              border: "none",
+              lineHeight: "62px",
+              background: "transparent",
+            }}
+          />
+        </div>
+
+        {/* Hamburger button — visible only on mobile */}
+        <div className="ml-auto md:hidden">
+          <Button
+            type="text"
+            icon={<MenuOutlined />}
+            onClick={() => setDrawerOpen(true)}
+            aria-label="Open navigation"
+          />
+        </div>
+      </Header>
+
+      {/* Mobile slide-in navigation */}
+      <Drawer
+        title="Navigation"
+        placement="right"
+        onClose={() => setDrawerOpen(false)}
+        open={drawerOpen}
+        size={240}
+      >
         <Menu
-          mode="horizontal"
+          mode="inline"
           selectedKeys={[selectedKey]}
           items={menuItems}
-          style={{
-            flex: 1,
-            border: "none",
-            lineHeight: "62px",
-          }}
+          style={{ border: "none" }}
         />
-      </Header>
+      </Drawer>
 
       <Content>{children}</Content>
     </Layout>

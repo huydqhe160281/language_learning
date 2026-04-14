@@ -24,6 +24,7 @@ import {
   Card as FlashCard,
   UpdateProgressRequest,
 } from "@/lib/api";
+import { useTheme } from "@/lib/theme-context";
 
 const { Title, Text } = Typography;
 
@@ -52,6 +53,8 @@ function levenshtein(a: string, b: string): number {
 export default function LearnPage() {
   const params = useParams();
   const setId = typeof params.id === "string" ? params.id : "";
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
 
   const [set, setSet] = useState<StudySet | null>(null);
   const [deck, setDeck] = useState<FlashCard[]>([]);
@@ -212,7 +215,7 @@ export default function LearnPage() {
 
           <Row gutter={12} style={{ marginBottom: 24 }}>
             <Col span={8}>
-              <Card style={{ background: "#f0fdf4", textAlign: "center" }}>
+              <Card style={{ textAlign: "center" }}>
                 <Statistic
                   title="Correct"
                   value={correct}
@@ -221,7 +224,7 @@ export default function LearnPage() {
               </Card>
             </Col>
             <Col span={8}>
-              <Card style={{ background: "#fefce8", textAlign: "center" }}>
+              <Card style={{ textAlign: "center" }}>
                 <Statistic
                   title="Almost"
                   value={almost}
@@ -230,7 +233,7 @@ export default function LearnPage() {
               </Card>
             </Col>
             <Col span={8}>
-              <Card style={{ background: "#fef2f2", textAlign: "center" }}>
+              <Card style={{ textAlign: "center" }}>
                 <Statistic
                   title="Wrong"
                   value={wrong}
@@ -250,10 +253,16 @@ export default function LearnPage() {
                   padding: "6px 12px",
                   background:
                     v === "correct"
-                      ? "#f0fdf4"
+                      ? isDark
+                        ? "#052e16"
+                        : "#f0fdf4"
                       : v === "almost"
-                        ? "#fefce8"
-                        : "#fef2f2",
+                        ? isDark
+                          ? "#1c1a00"
+                          : "#fefce8"
+                        : isDark
+                          ? "#2d0a0a"
+                          : "#fef2f2",
                   borderRadius: 8,
                   marginBottom: 4,
                 }}
@@ -352,7 +361,7 @@ export default function LearnPage() {
           percent={progressPct}
           showInfo={false}
           strokeColor="#fff"
-          trailColor="rgba(255,255,255,0.2)"
+          railColor="rgba(255,255,255,0.2)"
           size={["100%", 6]}
         />
       </div>
@@ -385,7 +394,7 @@ export default function LearnPage() {
               <Title level={2}>{current.front}</Title>
               <div
                 style={{
-                  background: "#f0fdfa",
+                  background: isDark ? "#0d2926" : "#f0fdfa",
                   borderRadius: 12,
                   padding: "16px 24px",
                   marginBottom: 32,
@@ -404,7 +413,10 @@ export default function LearnPage() {
                 </Text>
                 <Title
                   level={4}
-                  style={{ color: "#134e4a", margin: "8px 0 0" }}
+                  style={{
+                    color: isDark ? "#5eead4" : "#134e4a",
+                    margin: "8px 0 0",
+                  }}
                 >
                   {current.back}
                 </Title>
@@ -455,13 +467,15 @@ export default function LearnPage() {
                   width: "100%",
                   padding: "12px 16px",
                   fontSize: 16,
-                  border: "2px solid #e5e7eb",
+                  border: "2px solid var(--border)",
                   borderRadius: 12,
                   outline: "none",
                   marginBottom: 16,
+                  background: "var(--card)",
+                  color: "var(--foreground)",
                 }}
                 onFocus={(e) => (e.target.style.borderColor = "#0d9488")}
-                onBlur={(e) => (e.target.style.borderColor = "#e5e7eb")}
+                onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
               />
               <Button
                 type="primary"
@@ -500,7 +514,7 @@ export default function LearnPage() {
                 <div style={{ marginBottom: 24 }}>
                   <div
                     style={{
-                      background: "#f9fafb",
+                      background: "var(--muted)",
                       borderRadius: 8,
                       padding: "10px 16px",
                       marginBottom: 8,
@@ -513,7 +527,7 @@ export default function LearnPage() {
                   </div>
                   <div
                     style={{
-                      background: "#f0fdfa",
+                      background: isDark ? "#0d2926" : "#f0fdfa",
                       borderRadius: 8,
                       padding: "10px 16px",
                     }}
@@ -521,7 +535,12 @@ export default function LearnPage() {
                     <Text style={{ fontSize: 12, color: "#0d9488" }}>
                       Correct answer
                     </Text>
-                    <div style={{ fontWeight: 600, color: "#134e4a" }}>
+                    <div
+                      style={{
+                        fontWeight: 600,
+                        color: isDark ? "#5eead4" : "#134e4a",
+                      }}
+                    >
                       {current.back}
                     </div>
                   </div>

@@ -8,7 +8,6 @@ import {
   FlashcardActiveView,
   FlashcardEmptyView,
   FlashcardFinishedView,
-  FlashcardLoadingView,
 } from "@/components/dashboard/study/flashcard-session";
 import {
   setsApiClient,
@@ -24,7 +23,6 @@ export default function FlashcardPage() {
   const setId = typeof params.id === "string" ? params.id : "";
 
   const [set, setSet] = useState<StudySet | null>(null);
-  const [loading, setLoading] = useState(true);
   const [deck, setDeck] = useState<FlashCard[]>([]);
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -43,9 +41,8 @@ export default function FlashcardPage() {
           () => Math.random() - 0.5,
         );
         setDeck(shuffled);
-        setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {});
   }, [setId]);
 
   const current = deck[index];
@@ -102,10 +99,6 @@ export default function FlashcardPage() {
     setUnknown(new Set());
     setFinished(false);
   };
-
-  if (loading) {
-    return <FlashcardLoadingView />;
-  }
 
   if (!set || deck.length === 0) {
     return <FlashcardEmptyView setId={setId} />;

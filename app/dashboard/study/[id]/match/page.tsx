@@ -9,7 +9,6 @@ import {
   Card,
   Col,
   Row,
-  Spin,
   Statistic,
   Tag,
   Typography,
@@ -20,6 +19,7 @@ import {
   StudySet,
   Card as FlashCard,
 } from "@/lib/api";
+import { useTheme } from "@/lib/theme-context";
 
 const { Title, Text } = Typography;
 
@@ -55,8 +55,10 @@ export default function MatchPage() {
   const params = useParams();
   const setId = typeof params.id === "string" ? params.id : "";
 
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+
   const [set, setSet] = useState<StudySet | null>(null);
-  const [loading, setLoading] = useState(true);
   const [tiles, setTiles] = useState<Tile[]>([]);
   const [tileStates, setTileStates] = useState<Record<string, TileState>>({});
   const [selected, setSelected] = useState<string | null>(null);
@@ -72,9 +74,8 @@ export default function MatchPage() {
       .getById(setId)
       .then((data) => {
         setSet(data);
-        setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {});
   }, [setId]);
 
   const initGame = useCallback((cards: FlashCard[]) => {
@@ -166,22 +167,6 @@ export default function MatchPage() {
   const formatTime = (s: number) =>
     `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
-  if (loading) {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "linear-gradient(135deg,#f97316,#ea580c)",
-        }}
-      >
-        <Spin size="large" tip="Loading…" />
-      </div>
-    );
-  }
-
   if (!set || (set.cards ?? []).length < 2) {
     return (
       <div
@@ -228,7 +213,7 @@ export default function MatchPage() {
 
           <Row gutter={16} style={{ margin: "32px 0" }}>
             <Col span={12}>
-              <Card style={{ background: "#fff7ed" }}>
+              <Card>
                 <Statistic
                   title="Time"
                   value={formatTime(elapsed)}
@@ -237,7 +222,7 @@ export default function MatchPage() {
               </Card>
             </Col>
             <Col span={12}>
-              <Card style={{ background: "#fef2f2" }}>
+              <Card>
                 <Statistic
                   title="Mistakes"
                   value={mistakes}
@@ -294,9 +279,9 @@ export default function MatchPage() {
       case "idle":
         return {
           ...base,
-          background: "#fff",
-          borderColor: "#e5e7eb",
-          color: "#111827",
+          background: isDark ? "var(--secondary)" : "#fff",
+          borderColor: "var(--border)",
+          color: "var(--foreground)",
         };
       case "selected":
         return {
