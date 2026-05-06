@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { CheckOutlined, CloseOutlined, MinusOutlined } from "@ant-design/icons";
 import {
   Alert,
@@ -25,10 +25,11 @@ import {
   UpdateProgressRequest,
 } from "@/lib/api";
 import { useTheme } from "@/lib/theme-context";
+import { useBatchDeck } from "@/lib/hooks/use-batch-deck";
 
 const { Title, Text } = Typography;
 
-type Phase = "preview" | "answer" | "result";
+type Phase = "preview" | "answer" | "result" | "batchDone";
 type Verdict = "correct" | "almost" | "wrong";
 
 function normalize(s: string) {
@@ -50,21 +51,35 @@ function levenshtein(a: string, b: string): number {
   return dp[m][n];
 }
 
-export default function LearnPage() {
+function LearnPageInner() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const setId = typeof params.id === "string" ? params.id : "";
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
+  // Study config from URL params (set by StudySettingsModal)
+  const batchSize = searchParams.get("batchSize")
+    ? parseInt(searchParams.get("batchSize")!, 10)
+    : null;
+  const shuffle = searchParams.get("shuffle") === "true";
+
   const [set, setSet] = useState<StudySet | null>(null);
-  const [deck, setDeck] = useState<FlashCard[]>([]);
+  const [allCards, setAllCards] = useState<FlashCard[]>([]);
+
+  const batchDeck = useBatchDeck(allCards, batchSize, shuffle);
+  const deck = batchDeck.deck;
+
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>("preview");
   const [input, setInput] = useState("");
   const [verdict, setVerdict] = useState<Verdict | null>(null);
+  // Accumulates results across ALL batches
   const [results, setResults] = useState<
     { card: FlashCard; verdict: Verdict }[]
   >([]);
+  // Index in results where the current batch started (for batch summary)
+  const [batchStartIdx, setBatchStartIdx] = useState(0);
   const [finished, setFinished] = useState(false);
   const [startTime] = useState(() => Date.now());
   const pendingProgressRef = useRef<UpdateProgressRequest[]>([]);
@@ -76,7 +91,7 @@ export default function LearnPage() {
       .getById(setId)
       .then((data) => {
         setSet(data);
-        setDeck([...(data.cards ?? [])].sort(() => Math.random() - 0.5));
+        setAllCards(data.cards ?? []);
       })
       .catch(() => {});
   }, [setId]);
@@ -122,39 +137,71 @@ export default function LearnPage() {
     setVerdict(null);
 
     if (index + 1 >= total) {
-      setFinished(true);
-      const duration = Math.round((Date.now() - startTime) / 1000);
-      const correct = newResults.filter((r) => r.verdict === "correct").length;
+      // End of current deck (batch or full)
       const pending = pendingProgressRef.current;
       if (pending.length > 0) {
         progressApiClient.batchUpdate({ updates: pending }).catch(() => {});
         pendingProgressRef.current = [];
       }
-      studySessionsApiClient
-        .create({
-          setId,
-          mode: "learn",
-          correctCount: correct,
-          totalCount: total,
-          duration,
-        })
-        .catch(() => {});
+
+      const wrongCards = newResults
+        .slice(batchStartIdx)
+        .filter((r) => r.verdict === "wrong")
+        .map((r) => r.card);
+
+      if (
+        batchSize !== null &&
+        (batchDeck.hasMoreNewCards || wrongCards.length > 0)
+      ) {
+        // Show inter-batch summary
+        setPhase("batchDone");
+      } else {
+        // Truly done
+        const duration = Math.round((Date.now() - startTime) / 1000);
+        const correct = newResults.filter(
+          (r) => r.verdict === "correct",
+        ).length;
+        studySessionsApiClient
+          .create({
+            setId,
+            mode: "learn",
+            correctCount: correct,
+            totalCount: newResults.length,
+            duration,
+          })
+          .catch(() => {});
+        setFinished(true);
+      }
     } else {
       setIndex((i) => i + 1);
       setPhase("preview");
     }
   };
 
+  const continueBatch = () => {
+    const batchResults = results.slice(batchStartIdx);
+    const wrongCards = batchResults
+      .filter((r) => r.verdict === "wrong")
+      .map((r) => r.card);
+    setBatchStartIdx(results.length);
+    batchDeck.advance(wrongCards);
+    setIndex(0);
+    setPhase("preview");
+  };
+
   const restart = () => {
-    if (!set) return;
-    setDeck([...(set.cards ?? [])].sort(() => Math.random() - 0.5));
+    batchDeck.reset();
+    setAllCards([]); // triggers re-seed on next non-empty allCards
     setIndex(0);
     setPhase("preview");
     setInput("");
     setVerdict(null);
     setResults([]);
+    setBatchStartIdx(0);
     setFinished(false);
     pendingProgressRef.current = [];
+    // Re-fetch cards to re-seed the hook
+    if (set) setAllCards(set.cards ?? []);
   };
 
   const verdictAlertType =
@@ -187,6 +234,105 @@ export default function LearnPage() {
     );
   }
 
+  // ── Inter-batch summary ──────────────────────────────────────────────────
+  if (phase === "batchDone") {
+    const batchResults = results.slice(batchStartIdx);
+    const correct = batchResults.filter((r) => r.verdict === "correct").length;
+    const almost = batchResults.filter((r) => r.verdict === "almost").length;
+    const wrong = batchResults.filter((r) => r.verdict === "wrong").length;
+    const wrongCards = batchResults
+      .filter((r) => r.verdict === "wrong")
+      .map((r) => r.card);
+
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "linear-gradient(135deg,#0d9488,#059669)",
+          padding: 24,
+        }}
+      >
+        <Card
+          style={{ maxWidth: 520, width: "100%" }}
+          styles={{ body: { padding: 40 } }}
+        >
+          <div style={{ textAlign: "center", marginBottom: 24 }}>
+            <div style={{ fontSize: 52, marginBottom: 8 }}>📦</div>
+            <Title level={3} style={{ margin: 0 }}>
+              Batch {batchDeck.batchNum} / {batchDeck.totalBatches} xong!
+            </Title>
+            <Text type="secondary">{set.title}</Text>
+          </div>
+
+          <Row gutter={12} style={{ marginBottom: 20 }}>
+            <Col span={8}>
+              <Card style={{ textAlign: "center" }}>
+                <Statistic
+                  title="Đúng"
+                  value={correct}
+                  styles={{ content: { color: "#16a34a" } }}
+                />
+              </Card>
+            </Col>
+            <Col span={8}>
+              <Card style={{ textAlign: "center" }}>
+                <Statistic
+                  title="Gần đúng"
+                  value={almost}
+                  styles={{ content: { color: "#ca8a04" } }}
+                />
+              </Card>
+            </Col>
+            <Col span={8}>
+              <Card style={{ textAlign: "center" }}>
+                <Statistic
+                  title="Sai"
+                  value={wrong}
+                  styles={{ content: { color: "#dc2626" } }}
+                />
+              </Card>
+            </Col>
+          </Row>
+
+          {wrong > 0 && (
+            <Alert
+              type="info"
+              showIcon
+              title={`${wrong} thẻ sai sẽ được lặp lại ở batch tiếp theo`}
+              style={{ marginBottom: 20 }}
+            />
+          )}
+
+          <Row gutter={12}>
+            <Col span={12}>
+              <Link
+                href={`/dashboard/sets/${setId}`}
+                style={{ display: "block" }}
+              >
+                <Button block>Kết thúc</Button>
+              </Link>
+            </Col>
+            <Col span={12}>
+              <Button
+                type="primary"
+                block
+                onClick={continueBatch}
+                style={{ background: "#0d9488", borderColor: "#0d9488" }}
+                disabled={!batchDeck.hasMoreNewCards && wrongCards.length === 0}
+              >
+                Tiếp batch {batchDeck.batchNum + 1} →
+              </Button>
+            </Col>
+          </Row>
+        </Card>
+      </div>
+    );
+  }
+
+  // ── Final finished screen ────────────────────────────────────────────────
   if (finished) {
     const correct = results.filter((r) => r.verdict === "correct").length;
     const almost = results.filter((r) => r.verdict === "almost").length;
@@ -219,7 +365,7 @@ export default function LearnPage() {
                 <Statistic
                   title="Correct"
                   value={correct}
-                  valueStyle={{ color: "#16a34a" }}
+                  styles={{ content: { color: "#16a34a" } }}
                 />
               </Card>
             </Col>
@@ -228,7 +374,7 @@ export default function LearnPage() {
                 <Statistic
                   title="Almost"
                   value={almost}
-                  valueStyle={{ color: "#ca8a04" }}
+                  styles={{ content: { color: "#ca8a04" } }}
                 />
               </Card>
             </Col>
@@ -237,7 +383,7 @@ export default function LearnPage() {
                 <Statistic
                   title="Wrong"
                   value={wrong}
-                  valueStyle={{ color: "#dc2626" }}
+                  styles={{ content: { color: "#dc2626" } }}
                 />
               </Card>
             </Col>
@@ -349,7 +495,20 @@ export default function LearnPage() {
             style={{ color: "#fff" }}
           />
         </Link>
-        <Text style={{ color: "#fff", fontWeight: 600 }}>{set.title}</Text>
+        <div style={{ textAlign: "center" }}>
+          <Text style={{ color: "#fff", fontWeight: 600 }}>{set.title}</Text>
+          {batchSize && (
+            <Text
+              style={{
+                color: "rgba(255,255,255,0.7)",
+                fontSize: 11,
+                display: "block",
+              }}
+            >
+              Batch {batchDeck.batchNum} / {batchDeck.totalBatches}
+            </Text>
+          )}
+        </div>
         <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 13 }}>
           {index + 1} / {total}
         </Text>
@@ -560,5 +719,13 @@ export default function LearnPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LearnPage() {
+  return (
+    <Suspense>
+      <LearnPageInner />
+    </Suspense>
   );
 }

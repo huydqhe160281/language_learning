@@ -72,7 +72,7 @@ export function FlashcardFinishedView({
               <Statistic
                 title="Got it"
                 value={knownCount}
-                valueStyle={{ color: "#16a34a" }}
+                styles={{ content: { color: "#16a34a" } }}
               />
             </Card>
           </Col>
@@ -81,7 +81,7 @@ export function FlashcardFinishedView({
               <Statistic
                 title="Still learning"
                 value={unknownCount}
-                valueStyle={{ color: "#dc2626" }}
+                styles={{ content: { color: "#dc2626" } }}
               />
             </Card>
           </Col>

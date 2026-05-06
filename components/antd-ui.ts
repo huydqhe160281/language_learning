@@ -20,9 +20,11 @@ export {
   Select,
   Form,
   Radio,
+  Checkbox,
   Upload,
   Tabs,
   Segmented,
+  Switch,
   // Data Display
   Card,
   List,
@@ -44,4 +46,5 @@ export {
   Drawer,
   // Utils
   App,
+  Tooltip,
 } from "antd";

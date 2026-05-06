@@ -3,7 +3,12 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { DeleteOutlined, EditOutlined, LeftOutlined } from "@ant-design/icons";
+import {
+  DeleteOutlined,
+  EditOutlined,
+  LeftOutlined,
+  ScissorOutlined,
+} from "@ant-design/icons";
 import {
   Alert,
   App,
@@ -18,6 +23,7 @@ import {
   Typography,
 } from "@/components/antd-ui";
 import { CsvImportPanel } from "@/components/dashboard/sets/csv-import-panel";
+import { SplitSetModal } from "@/components/dashboard/sets/split-set-modal";
 import {
   EditCardModal,
   type EditCardFormValues,
@@ -60,6 +66,7 @@ export default function SetDetailPage() {
   const [editCardOpen, setEditCardOpen] = useState(false);
   const [editCardLoading, setEditCardLoading] = useState(false);
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
+  const [splitOpen, setSplitOpen] = useState(false);
 
   const loadSet = useCallback(async () => {
     if (!id || loadingRef.current) return;
@@ -352,6 +359,14 @@ export default function SetDetailPage() {
                   <Button icon={<EditOutlined />} onClick={openEditSetModal}>
                     Chỉnh sửa bộ từ
                   </Button>
+                  <Button
+                    icon={<ScissorOutlined />}
+                    onClick={() => setSplitOpen(true)}
+                    disabled={(set.cards ?? []).length < 2}
+                    title="Chia nhỏ bộ từ thành nhiều phần"
+                  >
+                    Chia nhỏ
+                  </Button>
                   <Popconfirm
                     title="Xóa bộ từ?"
                     description="Tất cả thẻ và tiến độ sẽ bị xóa vĩnh viễn."
@@ -465,6 +480,20 @@ export default function SetDetailPage() {
               form={editCardForm}
               confirmLoading={editCardLoading}
             />
+
+            {splitOpen && (
+              <SplitSetModal
+                open={splitOpen}
+                set={set}
+                onCancel={() => setSplitOpen(false)}
+                onSuccess={(newIds) => {
+                  setSplitOpen(false);
+                  message.success(
+                    `Đã tạo ${newIds.length} bộ nhỏ! Xem trong My Sets.`,
+                  );
+                }}
+              />
+            )}
           </div>
         )}
       </main>

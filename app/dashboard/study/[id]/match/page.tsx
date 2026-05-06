@@ -217,7 +217,7 @@ export default function MatchPage() {
                 <Statistic
                   title="Time"
                   value={formatTime(elapsed)}
-                  valueStyle={{ color: "#ea580c", fontSize: 28 }}
+                  styles={{ content: { color: "#ea580c", fontSize: 28 } }}
                 />
               </Card>
             </Col>
@@ -226,7 +226,7 @@ export default function MatchPage() {
                 <Statistic
                   title="Mistakes"
                   value={mistakes}
-                  valueStyle={{ color: "#dc2626" }}
+                  styles={{ content: { color: "#dc2626" } }}
                 />
               </Card>
             </Col>

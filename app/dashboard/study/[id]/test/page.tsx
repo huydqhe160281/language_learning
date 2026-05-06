@@ -280,10 +280,12 @@ export default function TestPage() {
                   title="Score"
                   value={pct}
                   suffix="%"
-                  valueStyle={{
-                    color: "#334155",
-                    fontSize: 40,
-                    fontWeight: 700,
+                  styles={{
+                    content: {
+                      color: "#334155",
+                      fontSize: 40,
+                      fontWeight: 700,
+                    },
                   }}
                 />
               </Card>
@@ -293,7 +295,7 @@ export default function TestPage() {
                 <Statistic
                   title="Correct"
                   value={`${correctCount} / ${total}`}
-                  valueStyle={{ color: "#16a34a" }}
+                  styles={{ content: { color: "#16a34a" } }}
                 />
               </Card>
             </Col>

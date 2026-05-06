@@ -32,7 +32,7 @@ export function ProgressSummaryStats({
             title="Đã học"
             value={studiedCards}
             prefix="✓"
-            valueStyle={{ color: "#16a34a" }}
+            styles={{ content: { color: "#16a34a" } }}
           />
         </Card>
       </Col>
@@ -42,8 +42,8 @@ export function ProgressSummaryStats({
             title="Chưa học"
             value={unstudiedCards}
             prefix="○"
-            valueStyle={{
-              color: unstudiedCards > 0 ? "#dc2626" : "#6b7280",
+            styles={{
+              content: { color: unstudiedCards > 0 ? "#dc2626" : "#6b7280" },
             }}
           />
         </Card>
@@ -54,7 +54,7 @@ export function ProgressSummaryStats({
             title="Đúng"
             value={totalCorrect}
             prefix="✓"
-            valueStyle={{ color: "#16a34a" }}
+            styles={{ content: { color: "#16a34a" } }}
           />
         </Card>
       </Col>
@@ -64,7 +64,7 @@ export function ProgressSummaryStats({
             title="Sai"
             value={totalIncorrect}
             prefix="✗"
-            valueStyle={{ color: "#dc2626" }}
+            styles={{ content: { color: "#dc2626" } }}
           />
         </Card>
       </Col>
@@ -75,7 +75,7 @@ export function ProgressSummaryStats({
             value={overallMasteryPct}
             suffix="%"
             prefix="🎯"
-            valueStyle={{ color: "#7c3aed" }}
+            styles={{ content: { color: "#7c3aed" } }}
           />
         </Card>
       </Col>

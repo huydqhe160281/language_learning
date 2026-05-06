@@ -1,16 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { CheckOutlined, CloseOutlined } from "@ant-design/icons";
 import {
+  Alert,
   Button,
   Card,
   Col,
   List,
   Progress,
   Row,
+  Statistic,
   Tag,
   Typography,
 } from "@/components/antd-ui";
@@ -22,6 +31,7 @@ import {
   Card as FlashCard,
   UpdateProgressRequest,
 } from "@/lib/api";
+import { useBatchDeck } from "@/lib/hooks/use-batch-deck";
 
 const { Title, Text } = Typography;
 
@@ -31,9 +41,9 @@ type Question = {
   correct: string;
 };
 
+/** Builds questions from cards — preserves card order, only shuffles choices */
 function buildQuestions(cards: FlashCard[]): Question[] {
-  const shuffled = [...cards].sort(() => Math.random() - 0.5);
-  return shuffled.map((card) => {
+  return cards.map((card) => {
     const others = cards
       .filter((c) => c.id !== card.id)
       .sort(() => Math.random() - 0.5)
@@ -44,15 +54,37 @@ function buildQuestions(cards: FlashCard[]): Question[] {
   });
 }
 
-export default function QuizPage() {
+function QuizPageInner() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const setId = typeof params.id === "string" ? params.id : "";
 
+  const batchSize = searchParams.get("batchSize")
+    ? parseInt(searchParams.get("batchSize")!, 10)
+    : null;
+  const shuffle = searchParams.get("shuffle") === "true";
+
   const [set, setSet] = useState<StudySet | null>(null);
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const [allCards, setAllCards] = useState<FlashCard[]>([]);
+
+  const batchDeck = useBatchDeck(allCards, batchSize, shuffle);
+  const deck = batchDeck.deck;
+
+  // Build questions from current batch deck
+  const questions = useMemo(() => {
+    if (deck.length < 2) return [];
+    return buildQuestions(deck);
+  }, [deck]);
+
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
+  // Results for current batch (true = correct)
   const [results, setResults] = useState<boolean[]>([]);
+  // Accumulated results across all batches for the final screen
+  const [completed, setCompleted] = useState<
+    { question: Question; correct: boolean }[]
+  >([]);
+  const [batchDone, setBatchDone] = useState(false);
   const [finished, setFinished] = useState(false);
   const [startTime] = useState(() => Date.now());
   const pendingProgressRef = useRef<UpdateProgressRequest[]>([]);
@@ -63,8 +95,7 @@ export default function QuizPage() {
       .getById(setId)
       .then((data) => {
         setSet(data);
-        const cards = data.cards ?? [];
-        if (cards.length >= 2) setQuestions(buildQuestions(cards));
+        setAllCards(data.cards ?? []);
       })
       .catch(() => {});
   }, [setId]);
@@ -78,53 +109,102 @@ export default function QuizPage() {
     (choice: string) => {
       if (selected !== null) return;
       setSelected(choice);
-      const correct = choice === current.correct;
+      const isCorrect = choice === current.correct;
       pendingProgressRef.current.push({
         cardId: current.card.id,
         setId,
-        isCorrect: correct,
+        isCorrect,
       });
 
       setTimeout(() => {
-        const next = [...results, correct];
+        const next = [...results, isCorrect];
         setResults(next);
         setSelected(null);
+
         if (index + 1 >= total) {
-          setFinished(true);
-          const duration = Math.round((Date.now() - startTime) / 1000);
+          // Flush progress
           const pending = pendingProgressRef.current;
           if (pending.length > 0) {
             progressApiClient.batchUpdate({ updates: pending }).catch(() => {});
             pendingProgressRef.current = [];
           }
-          studySessionsApiClient
-            .create({
-              setId,
-              mode: "quiz",
-              correctCount: next.filter(Boolean).length,
-              totalCount: total,
-              duration,
-            })
-            .catch(() => {});
+
+          // Accumulate completed questions
+          const batchCompleted = questions.map((q, i) => ({
+            question: q,
+            correct: next[i] ?? false,
+          }));
+          setCompleted((prev) => [...prev, ...batchCompleted]);
+
+          const wrongCards = questions
+            .filter((_, i) => !next[i])
+            .map((q) => q.card);
+
+          if (
+            batchSize !== null &&
+            (batchDeck.hasMoreNewCards || wrongCards.length > 0)
+          ) {
+            setBatchDone(true);
+          } else {
+            const duration = Math.round((Date.now() - startTime) / 1000);
+            const totalCorrect = [...completed, ...batchCompleted].filter(
+              (c) => c.correct,
+            ).length;
+            studySessionsApiClient
+              .create({
+                setId,
+                mode: "quiz",
+                correctCount: totalCorrect,
+                totalCount: [...completed, ...batchCompleted].length,
+                duration,
+              })
+              .catch(() => {});
+            setFinished(true);
+          }
         } else {
           setIndex((i) => i + 1);
         }
       }, 900);
     },
-    [selected, current, results, index, total, setId, startTime],
+    [
+      selected,
+      current,
+      results,
+      index,
+      total,
+      setId,
+      startTime,
+      questions,
+      batchSize,
+      batchDeck.hasMoreNewCards,
+      completed,
+    ],
   );
 
+  const continueBatch = () => {
+    const wrongCards = questions
+      .filter((_, i) => !results[i])
+      .map((q) => q.card);
+    batchDeck.advance(wrongCards);
+    setIndex(0);
+    setResults([]);
+    setBatchDone(false);
+  };
+
   const restart = () => {
-    if (!set) return;
-    setQuestions(buildQuestions(set.cards ?? []));
+    batchDeck.reset();
+    setAllCards([]);
     setIndex(0);
     setSelected(null);
     setResults([]);
+    setCompleted([]);
+    setBatchDone(false);
     setFinished(false);
     pendingProgressRef.current = [];
+    if (set) setAllCards(set.cards ?? []);
   };
 
-  if (!set || (set.cards ?? []).length < 2) {
+  if (!set || allCards.length < 2) {
     return (
       <div
         style={{
@@ -147,8 +227,100 @@ export default function QuizPage() {
     );
   }
 
+  // ── Inter-batch summary ──────────────────────────────────────────────────
+  if (batchDone) {
+    const batchScore = results.filter(Boolean).length;
+    const batchWrong = total - batchScore;
+    const wrongCards = questions
+      .filter((_, i) => !results[i])
+      .map((q) => q.card);
+
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "linear-gradient(135deg,#7c3aed,#6d28d9)",
+          padding: 24,
+        }}
+      >
+        <Card
+          style={{ maxWidth: 480, width: "100%" }}
+          styles={{ body: { padding: 40 } }}
+        >
+          <div style={{ textAlign: "center", marginBottom: 24 }}>
+            <div style={{ fontSize: 52, marginBottom: 8 }}>📦</div>
+            <Title level={3} style={{ margin: 0 }}>
+              Batch {batchDeck.batchNum} / {batchDeck.totalBatches} xong!
+            </Title>
+            <Text type="secondary">{set.title}</Text>
+          </div>
+
+          <Row gutter={12} style={{ marginBottom: 20 }}>
+            <Col span={12}>
+              <Card style={{ textAlign: "center" }}>
+                <Statistic
+                  title="Đúng"
+                  value={batchScore}
+                  styles={{ content: { color: "#16a34a" } }}
+                />
+              </Card>
+            </Col>
+            <Col span={12}>
+              <Card style={{ textAlign: "center" }}>
+                <Statistic
+                  title="Sai"
+                  value={batchWrong}
+                  styles={{ content: { color: "#dc2626" } }}
+                />
+              </Card>
+            </Col>
+          </Row>
+
+          {batchWrong > 0 && (
+            <Alert
+              type="info"
+              showIcon
+              title={`${batchWrong} thẻ sai sẽ được lặp lại ở batch tiếp theo`}
+              style={{ marginBottom: 20 }}
+            />
+          )}
+
+          <Row gutter={12}>
+            <Col span={12}>
+              <Link
+                href={`/dashboard/sets/${setId}`}
+                style={{ display: "block" }}
+              >
+                <Button block>Kết thúc</Button>
+              </Link>
+            </Col>
+            <Col span={12}>
+              <Button
+                type="primary"
+                block
+                onClick={continueBatch}
+                disabled={!batchDeck.hasMoreNewCards && wrongCards.length === 0}
+                style={{ background: "#7c3aed", borderColor: "#7c3aed" }}
+              >
+                Tiếp batch {batchDeck.batchNum + 1} →
+              </Button>
+            </Col>
+          </Row>
+        </Card>
+      </div>
+    );
+  }
+
+  // ── Final finished screen ────────────────────────────────────────────────
   if (finished) {
-    const pct = Math.round((score / total) * 100);
+    const totalScore = completed.filter((c) => c.correct).length;
+    const totalCount = completed.length;
+    const pct =
+      totalCount > 0 ? Math.round((totalScore / totalCount) * 100) : 0;
+
     return (
       <div
         style={{
@@ -180,24 +352,24 @@ export default function QuizPage() {
             {pct}%
           </div>
           <Text type="secondary">
-            {score} / {total} correct
+            {totalScore} / {totalCount} correct
           </Text>
 
           <List
             style={{ marginTop: 24, marginBottom: 24, textAlign: "left" }}
-            dataSource={questions}
-            renderItem={(q, i) => (
+            dataSource={completed}
+            renderItem={({ question: q, correct }) => (
               <List.Item
                 style={{
                   padding: "6px 12px",
                   borderRadius: 8,
                   marginBottom: 4,
-                  background: results[i] ? "#f0fdf4" : "#fef2f2",
+                  background: correct ? "#f0fdf4" : "#fef2f2",
                 }}
               >
                 <Tag
-                  color={results[i] ? "success" : "error"}
-                  icon={results[i] ? <CheckOutlined /> : <CloseOutlined />}
+                  color={correct ? "success" : "error"}
+                  icon={correct ? <CheckOutlined /> : <CloseOutlined />}
                 />
                 <Text strong style={{ marginLeft: 8 }}>
                   {q.card.front}
@@ -214,7 +386,12 @@ export default function QuizPage() {
 
           <Row gutter={12}>
             <Col span={12}>
-              <Button type="primary" block onClick={restart}>
+              <Button
+                type="primary"
+                block
+                onClick={restart}
+                style={{ background: "#7c3aed", borderColor: "#7c3aed" }}
+              >
                 Retake quiz
               </Button>
             </Col>
@@ -227,6 +404,25 @@ export default function QuizPage() {
               </Link>
             </Col>
           </Row>
+        </Card>
+      </div>
+    );
+  }
+
+  if (questions.length === 0) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "linear-gradient(135deg,#7c3aed,#6d28d9)",
+          padding: 24,
+        }}
+      >
+        <Card style={{ maxWidth: 400, width: "100%", textAlign: "center" }}>
+          <Text>Loading…</Text>
         </Card>
       </div>
     );
@@ -258,7 +454,20 @@ export default function QuizPage() {
             style={{ color: "#fff" }}
           />
         </Link>
-        <Text style={{ color: "#fff", fontWeight: 600 }}>{set.title}</Text>
+        <div style={{ textAlign: "center" }}>
+          <Text style={{ color: "#fff", fontWeight: 600 }}>{set.title}</Text>
+          {batchSize && (
+            <Text
+              style={{
+                color: "rgba(255,255,255,0.7)",
+                fontSize: 11,
+                display: "block",
+              }}
+            >
+              Batch {batchDeck.batchNum} / {batchDeck.totalBatches}
+            </Text>
+          )}
+        </div>
         <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 13 }}>
           {index + 1} / {total}
         </Text>
@@ -367,5 +576,13 @@ export default function QuizPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function QuizPage() {
+  return (
+    <Suspense>
+      <QuizPageInner />
+    </Suspense>
   );
 }

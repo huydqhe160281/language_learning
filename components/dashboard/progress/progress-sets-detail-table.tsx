@@ -130,7 +130,7 @@ export function ProgressSetsDetailTable({
       {sets.length === 0 ? (
         <Empty
           image={<span style={{ fontSize: 48 }}>📊</span>}
-          imageStyle={{ height: "auto" }}
+          styles={{ image: { height: "auto" } }}
           description="Chưa có dữ liệu. Hãy bắt đầu học để xem tiến độ tại đây."
           style={{ padding: "32px 0" }}
         />

@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Alert,
   Button,
@@ -10,6 +12,8 @@ import {
   Space,
   Typography,
 } from "@/components/antd-ui";
+import { StudySettingsModal } from "./study-settings-modal";
+import type { StudyConfig } from "./study-settings-modal";
 
 const { Title, Text } = Typography;
 
@@ -64,7 +68,20 @@ export function StudyModePicker({
   selectedMode,
   onSelectMode,
 }: StudyModePickerProps) {
+  const router = useRouter();
   const selected = STUDY_MODES.find((m) => m.id === selectedMode);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const handleStart = (config: StudyConfig) => {
+    setSettingsOpen(false);
+    const params = new URLSearchParams();
+    if (config.shuffle) params.set("shuffle", "true");
+    if (config.batchSize) params.set("batchSize", String(config.batchSize));
+    const qs = params.toString();
+    router.push(
+      `/dashboard/study/${setId}/${selectedMode}${qs ? `?${qs}` : ""}`,
+    );
+  };
 
   return (
     <div
@@ -122,7 +139,7 @@ export function StudyModePicker({
             type="info"
             icon={<span style={{ fontSize: 24 }}>{selected.icon}</span>}
             showIcon
-            message={selected.name}
+            title={selected.name}
             description={selected.desc}
             style={{ marginBottom: 24 }}
           />
@@ -132,13 +149,24 @@ export function StudyModePicker({
           <Link href={`/dashboard/sets/${setId}`}>
             <Button size="large">Cancel</Button>
           </Link>
-          <Link href={`/dashboard/study/${setId}/${selectedMode}`}>
-            <Button type="primary" size="large">
-              Start {selected?.name}
-            </Button>
-          </Link>
+          <Button
+            type="primary"
+            size="large"
+            onClick={() => setSettingsOpen(true)}
+          >
+            Start {selected?.name}
+          </Button>
         </Space>
       </Card>
+
+      {selected && (
+        <StudySettingsModal
+          open={settingsOpen}
+          mode={selected.id}
+          onCancel={() => setSettingsOpen(false)}
+          onStart={handleStart}
+        />
+      )}
     </div>
   );
 }
