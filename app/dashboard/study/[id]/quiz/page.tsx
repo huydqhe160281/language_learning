@@ -204,6 +204,19 @@ function QuizPageInner() {
     if (set) setAllCards(set.cards ?? []);
   };
 
+  // Keyboard shortcut: press 1–4 to choose answer A/B/C/D
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (selected !== null || !current || batchDone || finished) return;
+      const idx = ["1", "2", "3", "4"].indexOf(e.key);
+      if (idx !== -1 && current.choices[idx] !== undefined) {
+        choose(current.choices[idx]);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [selected, current, choose, batchDone, finished]);
+
   if (!set || allCards.length < 2) {
     return (
       <div

@@ -85,6 +85,10 @@ function LearnPageInner() {
   const pendingProgressRef = useRef<UpdateProgressRequest[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Stable refs so the keyboard handler always calls the latest version
+  const phaseRef = useRef(phase);
+  phaseRef.current = phase;
+
   useEffect(() => {
     if (!setId) return;
     setsApiClient
@@ -203,6 +207,25 @@ function LearnPageInner() {
     // Re-fetch cards to re-seed the hook
     if (set) setAllCards(set.cards ?? []);
   };
+
+  // Refs to latest handlers so the keyboard listener avoids stale closures
+  const startAnswerRef = useRef(startAnswer);
+  startAnswerRef.current = startAnswer;
+  const advanceRef = useRef(advance);
+  advanceRef.current = advance;
+
+  // Keyboard shortcut: Enter to confirm / advance (skip when focused on input)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== "Enter") return;
+      const tag = (document.activeElement as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "BUTTON") return;
+      if (phaseRef.current === "preview") startAnswerRef.current();
+      else if (phaseRef.current === "result") advanceRef.current();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   const verdictAlertType =
     verdict === "correct"

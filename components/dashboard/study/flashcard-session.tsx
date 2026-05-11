@@ -1,6 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import { CloseOutlined } from "@ant-design/icons";
 import {
@@ -139,6 +140,25 @@ export function FlashcardActiveView({
   const { theme } = useTheme();
   const isDark = theme === "dark";
 
+  // Keyboard shortcuts:
+  //   Space / ArrowUp / ArrowDown → flip card
+  //   ArrowLeft  → Got it (đã học)
+  //   ArrowRight → Still learning (chưa học)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === " " || e.key === "ArrowUp" || e.key === "ArrowDown") {
+        e.preventDefault();
+        onToggleFlip();
+      } else if (e.key === "ArrowLeft") {
+        if (flipped) onMarkKnown();
+      } else if (e.key === "ArrowRight") {
+        if (flipped) onMarkUnknown();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [flipped, onToggleFlip, onMarkKnown, onMarkUnknown]);
+
   return (
     <div
       style={{
@@ -251,9 +271,6 @@ export function FlashcardActiveView({
               <Title level={2} style={{ textAlign: "center", margin: 0 }}>
                 {current.front}
               </Title>
-              <Text type="secondary" style={{ marginTop: 24, fontSize: 13 }}>
-                Click to flip
-              </Text>
             </div>
             <div
               style={{
@@ -306,28 +323,28 @@ export function FlashcardActiveView({
             transition: "opacity 0.3s",
           }}
         >
-          <Button danger size="large" onClick={onMarkUnknown}>
-            ✗ Still learning
-          </Button>
           <Button
             type="primary"
             size="large"
             onClick={onMarkKnown}
             style={{ background: "#16a34a", borderColor: "#16a34a" }}
           >
-            ✓ Got it
+            ← Đã học
+          </Button>
+          <Button danger size="large" onClick={onMarkUnknown}>
+            Chưa thuộc →
           </Button>
         </div>
 
-        <Text
+        {/* <Text
           style={{
             marginTop: 24,
             color: "rgba(255,255,255,0.4)",
             fontSize: 13,
           }}
         >
-          Space to flip · ← Still learning · → Got it
-        </Text>
+          Space / ↑↓ lật thẻ · ← Đã học · → Chưa thuộc
+        </Text> */}
       </div>
     </div>
   );
